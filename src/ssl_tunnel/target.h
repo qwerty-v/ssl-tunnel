@@ -1,0 +1,7 @@
+#ifndef SSL_TUNNEL_TARGET_H
+#define SSL_TUNNEL_TARGET_H
+
+#define TARGET_APPLE
+//#define TARGET_LINUX
+
+#endif //SSL_TUNNEL_TARGET_H
