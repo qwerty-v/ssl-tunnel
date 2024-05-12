@@ -4,17 +4,17 @@
 #include <string.h>
 #include <errno.h>
 
-err_t mem_alloc_mem_scope(mem_scope **m) {
-    *m = malloc(sizeof(mem_scope));
+err_t mem_alloc_scope(scope **m) {
+    *m = malloc(sizeof(scope));
     if (!*m) {
         return errno;
     }
 
-    memset(*m, 0, sizeof(mem_scope));
+    memset(*m, 0, sizeof(scope));
     return ERROR_OK;
 }
 
-void mem_destroy_mem_scope(mem_scope *m) {
+void mem_destroy_scope(scope *m) {
     if (m->allocated_objs) {
         object *objs = (object *) m->allocated_objs->elements;
 
@@ -27,7 +27,7 @@ void mem_destroy_mem_scope(mem_scope *m) {
     free(m);
 }
 
-err_t mem_scope_init(mem_scope *m) {
+err_t scope_init(scope *m) {
     err_t err;
     if (!ERR_OK(err = array_alloc_slice(&m->allocated_objs))) {
         return err;
@@ -37,7 +37,7 @@ err_t mem_scope_init(mem_scope *m) {
     return ERROR_OK;
 }
 
-err_t mem_scope_alloc(mem_scope *m, void **dst, size_t size) {
+err_t scope_alloc(scope *m, void **dst, size_t size) {
     *dst = malloc(size);
     if (!*dst) {
         return errno;

@@ -12,10 +12,10 @@ typedef struct {
 
 typedef struct {
     slice *allocated_objs;
-} mem_scope;
+} scope;
 
-err_t mem_alloc_mem_scope(mem_scope **m);
-void mem_destroy_mem_scope(mem_scope *m);
+err_t mem_alloc_scope(scope **m);
+void mem_destroy_scope(scope *m);
 
-err_t mem_scope_init(mem_scope *m);
-err_t mem_scope_alloc(mem_scope *m, void **dst, size_t size);
+err_t scope_init(scope *m);
+err_t scope_alloc(scope *m, void **dst, size_t size);
