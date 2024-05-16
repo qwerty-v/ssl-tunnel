@@ -1,11 +1,11 @@
 #include <signal.h>
-#include <assert.h>
+#include <stdlib.h>
 
 static volatile int *sig_received = 0;
 
 void signal_handler(int _) {
     if (!sig_received) {
-        assert(0);
+        abort();
     }
 
     *sig_received = 1;

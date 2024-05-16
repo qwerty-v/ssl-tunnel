@@ -1,9 +1,13 @@
 #pragma once
 
-typedef int err_t;
+#include <stdbool.h>
+
+typedef struct {
+    bool ok;
+    char *msg;
+} err_t;
 
 extern const err_t ERROR_OK;
+extern const err_t ERROR_OUT_OF_MEMORY;
 
-void errors_print(err_t err);
-
-#define ERR_OK(expr) ((expr) == ERROR_OK)
+#define ERR_OK(err) ((err).ok)

@@ -1,52 +1,41 @@
 #include <ssl-tunnel/arrays.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 
-void test_alloc() {
-    slice *s;
+optional_alloc_t default_allocator = {
+        .present = false
+};
 
-    assert(array_alloc_slice(&s) == ERROR_OK);
-    assert(s->cap == 0);
-    assert(s->len == 0);
+void test_slice_init() {
+    slice_t s;
+    slice_init(&s, 123, default_allocator);
 
-    array_destroy_slice(s);
+    assert(s.element_size == 123);
+    assert(s.cap == 0);
 }
 
-void test_init() {
-    slice *s;
-
-    assert(array_alloc_slice(&s) == ERROR_OK);
-    slice_init(s, 123);
-    assert(s->element_size == 123);
-
-    array_destroy_slice(s);
-}
-
-void test_append_int() {
-    slice *s;
-
-    assert(array_alloc_slice(&s) == ERROR_OK);
-    slice_init(s, sizeof(int));
+void test_slice_append_int() {
+    slice_t s;
+    slice_init(&s, sizeof(int), default_allocator);
 
     int test_data[] = {1, 2, 3, 4, 5};
     int len = sizeof(test_data) / sizeof(int);
     for (int i = 0; i < len; i++) {
-        int el = test_data[i];
-        assert(slice_append(s, &el) == ERROR_OK);
+        assert(ERR_OK(slice_append(&s, &test_data[i])));
 
-        assert(s->len <= s->cap);
-        assert(s->len == i + 1);
+        assert(s.len <= s.cap);
+        assert(s.len == i + 1);
     }
 
-
-    int *elements = (int *) s->elements;
+    int *elements = (int *) s.array;
     for (int i = 0; i < len; i++) {
         assert(elements[i] == test_data[i]);
     }
 
-    array_destroy_slice(s);
+    free(s.array);
 }
 
 typedef struct {
@@ -54,11 +43,9 @@ typedef struct {
     char *bar;
 } custom_object;
 
-void test_append_custom_struct() {
-    slice *s;
-
-    assert(array_alloc_slice(&s) == ERROR_OK);
-    slice_init(s, sizeof(custom_object));
+void test_slice_append_custom() {
+    slice_t s;
+    slice_init(&s, sizeof(custom_object), default_allocator);
 
     custom_object test_data[] = {
             {
@@ -84,32 +71,27 @@ void test_append_custom_struct() {
     };
     int len = sizeof(test_data) / sizeof(custom_object);
     for (int i = 0; i < len; i++) {
-        custom_object el = test_data[i];
-        assert(slice_append(s, &el) == ERROR_OK);
+        assert(ERR_OK(slice_append(&s, &test_data[i])));
 
-        assert(s->len <= s->cap);
-        assert(s->len == i + 1);
+        assert(s.len <= s.cap);
+        assert(s.len == i + 1);
     }
 
-
-    custom_object *elements = (custom_object *) s->elements;
+    custom_object *elements = (custom_object *) s.array;
     for (int i = 0; i < len; i++) {
-        assert(elements[i].foo == test_data[i].foo);
-        assert(strcmp(elements[i].bar, test_data[i].bar) == 0);
+        assert(memcmp(&elements[i], &test_data[i], sizeof(custom_object)) == 0);
     }
 
-    array_destroy_slice(s);
+    free(s.array);
 }
 
 int main() {
-    test_alloc();
-    printf("OK test_alloc\n");
-    test_init();
-    printf("OK test_init\n");
-    test_append_int();
-    printf("OK test_append_int\n");
-    test_append_custom_struct();
-    printf("OK test_append_custom_struct\n");
+    test_slice_init();
+    printf("OK test_slice_init\n");
+    test_slice_append_int();
+    printf("OK test_slice_append_int\n");
+    test_slice_append_custom();
+    printf("OK test_slice_append_custom\n");
 
     return 0;
 }

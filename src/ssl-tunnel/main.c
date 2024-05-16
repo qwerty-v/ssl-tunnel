@@ -1,10 +1,12 @@
 #include <ssl-tunnel/server.h>
 
+#include <stdio.h>
+
 int main(int argc, char *argv[]) {
     err_t err;
 
     if (!ERR_OK(err = server_main(argc, argv))) {
-        errors_print(err);
+        printf("error: %s\n", err.msg);
         return err;
     }
 

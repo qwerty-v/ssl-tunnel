@@ -2,57 +2,155 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
-err_t mem_alloc_scope(scope **m) {
-    *m = malloc(sizeof(scope));
-    if (!*m) {
-        return errno;
+void alloc_pool_free(alloc_pool_t *p) {
+    _object_t *objs = (_object_t *) p->objs.array;
+
+    for (int i = 0; i < p->objs.len; i++) {
+        free(objs[i].ptr);
     }
-
-    memset(*m, 0, sizeof(scope));
-    return ERROR_OK;
 }
 
-void mem_destroy_scope(scope *m) {
-    if (m->allocated_objs) {
-        object *objs = (object *) m->allocated_objs->elements;
+void alloc_pool_init(alloc_pool_t *p) {
+    memset(p, 0, sizeof(alloc_pool_t));
 
-        for (int i = 0; i < m->allocated_objs->len; i++) {
-            free(objs[i].ptr);
+    slice_init(&p->objs, sizeof(_object_t), (optional_alloc_t) {
+            .present = false,
+    });
+}
+
+typedef struct {
+    malloc_t fn;
+    alloc_pool_t *pool;
+} _allocator_malloc_closure;
+
+typedef struct {
+    calloc_t fn;
+    alloc_pool_t *pool;
+} _allocator_calloc_closure;
+
+typedef struct {
+    realloc_t fn;
+    alloc_pool_t *pool;
+} _allocator_realloc_closure;
+
+void *_allocator_malloc_fn(void *ctx, size_t size);
+void *_allocator_calloc_fn(void *ctx, size_t nmemb, size_t size);
+void *_allocator_realloc_fn(void *ctx, void *ptr, size_t size);
+
+err_t alloc_pool_get_allocator(alloc_pool_t *p, alloc_t *out) {
+    {
+        _allocator_malloc_closure *closure = malloc(sizeof(_allocator_malloc_closure));
+        if (!closure) {
+            return ERROR_OUT_OF_MEMORY;
         }
 
-        array_destroy_slice(m->allocated_objs);
-    }
-    free(m);
-}
+        closure->fn = _allocator_malloc_fn;
+        closure->pool = p;
 
-err_t scope_init(scope *m) {
-    err_t err;
-    if (!ERR_OK(err = array_alloc_slice(&m->allocated_objs))) {
-        return err;
+        slice_append(&p->objs, &(_object_t) {
+                .ptr = closure,
+                .size = sizeof(_allocator_malloc_closure)
+        });
+
+        out->malloc = &closure->fn;
     }
 
-    slice_init(m->allocated_objs, sizeof(object));
+    {
+        _allocator_calloc_closure *closure = malloc(sizeof(_allocator_calloc_closure));
+        if (!closure) {
+            return ERROR_OUT_OF_MEMORY;
+        }
+
+        closure->fn = _allocator_calloc_fn;
+        closure->pool = p;
+
+        slice_append(&p->objs, &(_object_t) {
+                .ptr = closure,
+                .size = sizeof(_allocator_calloc_closure)
+        });
+
+        out->calloc = &closure->fn;
+    }
+
+    {
+        _allocator_realloc_closure *closure = malloc(sizeof(_allocator_realloc_closure));
+        if (!closure) {
+            return ERROR_OUT_OF_MEMORY;
+        }
+
+        closure->fn = _allocator_realloc_fn;
+        closure->pool = p;
+
+        slice_append(&p->objs, &(_object_t) {
+                .ptr = closure,
+                .size = sizeof(_allocator_realloc_closure)
+        });
+
+        out->realloc = &closure->fn;
+    }
+
     return ERROR_OK;
 }
 
-err_t scope_alloc(scope *m, void **dst, size_t size) {
-    *dst = malloc(size);
-    if (!*dst) {
-        return errno;
+void *_allocator_malloc_fn(void *ctx, size_t size) {
+    void *mem = malloc(size);
+    if (!mem) {
+        return mem;
     }
 
-    err_t err;
-    object el = {
-            .ptr = *dst,
-            .size = size
-    };
-
-    if (!ERR_OK(err = slice_append(m->allocated_objs, &el))) {
-        free(*dst);
-        return err;
+    _allocator_malloc_closure *c = ctx;
+    err_t err = slice_append(&c->pool->objs, &(_object_t) {
+            .ptr = mem,
+            .size = size,
+    });
+    if (!ERR_OK(err)) {
+        abort();
     }
 
-    return ERROR_OK;
+    return mem;
+}
+
+void *_allocator_calloc_fn(void *ctx, size_t nmemb, size_t size) {
+    void *mem = calloc(nmemb, size);
+    if (!mem) {
+        return mem;
+    }
+
+    _allocator_calloc_closure *c = ctx;
+    err_t err = slice_append(&c->pool->objs, &(_object_t){
+            .ptr = mem,
+            .size = nmemb * size,
+    });
+    if (!ERR_OK(err)) {
+        abort();
+    }
+
+    return mem;
+}
+
+void *_allocator_realloc_fn(void *ctx, void *ptr, size_t size) {
+    void *mem = realloc(ptr, size);
+    if (!mem) {
+        return mem;
+    }
+
+    _allocator_realloc_closure *c = ctx;
+
+    _object_t *objs = c->pool->objs.array;
+    int to_update = -1;
+    for (int i = 0; i < c->pool->objs.len; i++) {
+        if (objs[i].ptr == ptr) {
+            to_update = i;
+            break;
+        }
+    }
+    if (to_update == -1) {
+        abort();
+    }
+
+    objs[to_update].ptr = mem;
+    objs[to_update].size = size;
+
+    return mem;
 }

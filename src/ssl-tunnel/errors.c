@@ -1,7 +1,10 @@
 #include <ssl-tunnel/errors.h>
 
-const err_t ERROR_OK = 0;
+const err_t ERROR_OK = {
+        .ok = true,
+};
 
-void errors_print(int err) {
-
-}
+const err_t ERROR_OUT_OF_MEMORY = {
+        .ok = false,
+        .msg = "out of memory",
+};
