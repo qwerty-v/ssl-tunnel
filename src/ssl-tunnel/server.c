@@ -1,32 +1,30 @@
 #include <ssl-tunnel/signal.h>
 #include <ssl-tunnel/memory.h>
 #include <ssl-tunnel/errors.h>
+#include <ssl-tunnel/flag.h>
+
+#include <stdio.h>
 
 typedef struct {
-    volatile int running;
+    volatile bool sig_received;
 } server;
 
 err_t server_main(int argc, char *argv[]) {
+    alloc_pool_t p;
+    alloc_pool_init(&p);
+
     err_t err;
-
-    scope *m;
-    if (!ERR_OK(err = mem_alloc_scope(&m))) {
+    char *cfg_path;
+    if (!ERR_OK(err = flag_parse(argc, argv, &cfg_path))) {
         return err;
     }
 
-    if (!ERR_OK(err = scope_init(m))) {
-        mem_destroy_scope(m);
-        return err;
-    }
+    printf("%s %ld\n", cfg_path, strlen(cfg_path));
 
-    server *srv;
-    if (!ERR_OK(err = scope_alloc(m, (void **) &srv, sizeof(server)))) {
-        mem_destroy_scope(m);
-        return err;
-    }
+    server srv;
 
-    signal_init(&srv->running);
+    signal_init(&srv.sig_received);
 
-    mem_destroy_scope(m);
+    alloc_pool_free(&p);
     return ERROR_OK;
 }

@@ -1,3 +1,5 @@
 #pragma once
 
-void signal_init(volatile int *sig_received);
+#include <stdbool.h>
+
+void signal_init(volatile bool *sig_received);

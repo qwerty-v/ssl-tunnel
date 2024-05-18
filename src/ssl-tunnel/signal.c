@@ -1,17 +1,20 @@
-#include <signal.h>
-#include <stdlib.h>
+#include <ssl-tunnel/errors.h>
 
-static volatile int *sig_received = 0;
+#include <signal.h>
+#include <stdbool.h>
+
+static volatile bool *sig_received = 0;
 
 void signal_handler(int _) {
     if (!sig_received) {
-        abort();
+        panicf("invalid pointer to a state variable");
     }
 
-    *sig_received = 1;
+    *sig_received = true;
 }
 
-void signal_init(volatile int *s) {
+void signal_init(volatile bool *s) {
+    *s = false;
     sig_received = s;
 
     signal(SIGHUP, signal_handler);
