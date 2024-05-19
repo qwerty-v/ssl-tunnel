@@ -4,6 +4,7 @@
 #include <ssl-tunnel/arrays.h>
 #include <ssl-tunnel/alloc.h>
 
+// for the sake of testing, export the internal object
 typedef struct {
     void *ptr;
     size_t size;

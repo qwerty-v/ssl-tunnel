@@ -5,7 +5,7 @@ LDFLAGS =
 all: build
 
 build: clean
-	@find src/ssl-tunnel -name '*.c' | xargs -t $(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel --
+	@find src/ssl-tunnel -name '*.c' | xargs -t $(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel
 
 test: clean
 	$(CC) $(CFLAGS) -o bin/unit_test_arrays -- \

@@ -5,7 +5,7 @@
 #include <errno.h>
 
 void print_usage(char *executable) {
-    printf("Usage: %s --cfg <config_file>\n", executable);
+    printf("Usage: %s --cfg <config_file>.yaml\n", executable);
 }
 
 int main(int argc, char *argv[]) {

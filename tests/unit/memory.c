@@ -32,7 +32,7 @@ void test_alloc_pool_allocator() {
     assert(!!n && *n == 0);
 
     *n = 123;
-    _object_t *obj_array = (_object_t *) p.objs.array;
+    _object_t *obj_array = p.objs.array;
     _object_t last = obj_array[p.objs.len - 1];
 
     assert(*((int *)last.ptr) == 123);

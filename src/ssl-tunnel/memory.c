@@ -4,8 +4,7 @@
 #include <string.h>
 
 void alloc_pool_free(alloc_pool_t *p) {
-    _object_t *objs = (_object_t *) p->objs.array;
-
+    _object_t *objs = p->objs.array;
     for (int i = 0; i < p->objs.len; i++) {
         free(objs[i].ptr);
     }

@@ -30,7 +30,7 @@ void test_slice_append_int() {
         assert(s.len == i + 1);
     }
 
-    int *elements = (int *) s.array;
+    int *elements = s.array;
     for (int i = 0; i < len; i++) {
         assert(elements[i] == test_data[i]);
     }
@@ -77,7 +77,7 @@ void test_slice_append_custom() {
         assert(s.len == i + 1);
     }
 
-    custom_object *elements = (custom_object *) s.array;
+    custom_object *elements = s.array;
     for (int i = 0; i < len; i++) {
         assert(memcmp(&elements[i], &test_data[i], sizeof(custom_object)) == 0);
     }

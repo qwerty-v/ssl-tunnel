@@ -1,7 +1,7 @@
 #include <ssl-tunnel/arrays.h>
 
-#include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 const err_t ERROR_NEW_CAP_TOO_LOW = {
         .ok = false,
@@ -59,7 +59,6 @@ err_t slice_append(slice_t *s, const void *element) {
     }
 
     void *dst = (uint8_t *) s->array + s->len * s->element_size;
-
     memcpy(dst, element, s->element_size);
     s->len++;
 
