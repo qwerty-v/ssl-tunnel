@@ -11,9 +11,10 @@ RUN make
 FROM alpine:3.19
 WORKDIR /app
 
+RUN apk add --update bash iptables libc6-compat
+
 COPY --from=builder /app/bin/ssl-tunnel .
+COPY ./scripts/docker_entrypoint.sh .
 COPY ./config.yaml .
 
-RUN apk add libc6-compat
-
-CMD ["/app/ssl-tunnel", "--cfg", "/app/config.yaml"]
+CMD ["./docker_entrypoint.sh"]

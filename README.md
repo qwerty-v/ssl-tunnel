@@ -7,8 +7,12 @@ See OpenVPN GitHub [here](https://github.com/OpenVPN/openvpn)
 and OpenVPN protocol overview [here](https://build.openvpn.net/doxygen/network_protocol.html)
 
 ## Current limitations
+point-to-point connection
+
+tun only
+
 no-ssl implementation
 
 ## Run
-    make build
-    ./bin/ssl-tunnel --cfg <config_path>.yaml
+    $ docker build -t ssl-tunnel:0.0.1 .
+    $ docker run -d --cap-add=NET_ADMIN ssl-tunnel:0.0.1
