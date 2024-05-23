@@ -8,6 +8,13 @@ COPY . .
 
 RUN make
 
+FROM builder as test
+
+RUN make test
+
+RUN ./bin/unit_test_arrays
+RUN ./bin/unit_test_memory
+
 FROM alpine:3.19
 WORKDIR /app
 

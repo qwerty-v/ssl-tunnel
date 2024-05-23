@@ -21,12 +21,6 @@ const err_t ERROR_IFCONFIG_FAILED = {
         .msg = "error executing ifconfig"
 };
 
-void _server_close(server srv) {
-    close(srv.tun_fd);
-    close(srv.server_fd);
-    close(srv.poll_fd);
-}
-
 err_t _ifconfig_device_up() {
     int status = system("ifconfig tun0 10.8.0.1 10.8.0.2 mtu 1500 netmask 255.255.255.255 up");
     if (status != 0) {
@@ -53,7 +47,7 @@ err_t server_main(int argc, char *argv[]) {
     err_t err;
     char *cfg_path;
     if (!ERR_OK(err = flag_parse(argc, argv, &cfg_path))) {
-        return err;
+        goto cleanup_1;
     }
 
     server srv;
@@ -62,44 +56,44 @@ err_t server_main(int argc, char *argv[]) {
     signal_init(&srv.sig_received);
 
     if (!ERR_OK(err = fd_tun_open("tun0", &srv.tun_fd))) {
-        return err;
+        goto cleanup_1;
     }
 
     if (!ERR_OK(err = fd_set_nonblock(srv.tun_fd))) {
-        return err;
+        goto cleanup_2;
     }
 
     if (!ERR_OK(err = _ifconfig_device_up())) {
-        return err;
+        goto cleanup_2;
     }
 
     if (!ERR_OK(err = fd_udp_server_open(1026, &srv.server_fd))) {
-        return err;
+        goto cleanup_2;
     }
 
     if (!ERR_OK(err = fd_set_nonblock(srv.server_fd))) {
-        return err;
+        goto cleanup_3;
     }
 
     if (!ERR_OK(err = fd_poll_create(&srv.poll_fd))) {
-        return err;
+        goto cleanup_3;
     }
 
     if (!ERR_OK(err = fd_poll_add(srv.poll_fd, srv.tun_fd, POLL_READ))) {
-        return err;
+        goto cleanup_4;
     }
 
     if (!ERR_OK(err = fd_poll_add(srv.poll_fd, srv.server_fd, POLL_READ))) {
-        return err;
+        goto cleanup_4;
     }
 
     struct epoll_event evs[2];
 
-    printf("server listening on %d\n", 1026);
+    printf("server is listening on port %d\n", 1026);
     while (!srv.sig_received) {
         int fd_ready;
         if (!ERR_OK(err = fd_poll_wait(srv.poll_fd, evs, 2, 0, &fd_ready))) {
-            return err;
+            goto cleanup_4;
         }
 
         for (int i = 0; i < fd_ready; i++) {
@@ -118,8 +112,15 @@ err_t server_main(int argc, char *argv[]) {
             _handle_tun_read();
         }
     }
+    printf("signal received, terminating server...\n");
 
-    _server_close(srv);
+cleanup_4:
+    close(srv.poll_fd);
+cleanup_3:
+    close(srv.server_fd);
+cleanup_2:
+    close(srv.tun_fd);
+cleanup_1:
     alloc_pool_free(&p);
-    return ERROR_OK;
+    return err;
 }

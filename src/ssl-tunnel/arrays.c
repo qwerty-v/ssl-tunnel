@@ -33,25 +33,24 @@ err_t slice_resize(slice_t *s, int new_cap) {
 
     s->array = allocator_call_realloc(s->allocator, s->array, s->cap * s->element_size);
     if (!s->array) {
-        return ERROR_OUT_OF_MEMORY;
+        panicf("out of memory");
     }
 
     return ERROR_OK;
 }
 
 err_t slice_append(slice_t *s, const void *element) {
-    err_t err;
-
     if (s->cap == 0) {
         s->len = 0;
         s->cap = 1;
 
         s->array = allocator_call_malloc(s->allocator, s->element_size);
         if (!s->array) {
-            return ERROR_OUT_OF_MEMORY;
+            panicf("out of memory");
         }
     }
 
+    err_t err;
     if (s->len == s->cap) {
         if (!ERR_OK(err = slice_resize(s, 2 * s->cap))) {
             return err;

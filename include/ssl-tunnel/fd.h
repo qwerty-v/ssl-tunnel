@@ -3,11 +3,14 @@
 extern const int POLL_READ;
 extern const int POLL_WRITE;
 
-extern const err_t ERROR_OPEN_TUN;
+extern const err_t ERROR_OPEN_FAILED;
 extern const err_t ERROR_IOCTL_FAILED;
 extern const err_t ERROR_FCNTL_FAILED;
-extern const err_t ERROR_CREATE_SOCKET;
+extern const err_t ERROR_SOCKET_FAILED;
 extern const err_t ERROR_BIND_FAILED;
+extern const err_t ERROR_EPOLL_CREATE_FAILED;
+extern const err_t ERROR_EPOLL_CTL_FAILED;
+extern const err_t ERROR_EPOLL_WAIT_FAILED;
 
 err_t fd_tun_open(const char *device_name, int *tun_fd);
 err_t fd_udp_server_open(int port, int *server_fd);

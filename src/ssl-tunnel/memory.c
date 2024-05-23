@@ -23,9 +23,9 @@ void alloc_pool_init(alloc_pool_t *p) {
 }
 
 err_t alloc_pool_append_obj(alloc_pool_t *p, void *ptr, size_t size) {
-    return slice_append(&p->objs, &(_object_t){
-        .ptr = ptr,
-        .size = size
+    return slice_append(&p->objs, &(_object_t) {
+            .ptr = ptr,
+            .size = size
     });
 }
 
@@ -35,9 +35,9 @@ typedef struct {
 } _allocator_closure;
 
 void *_allocator_calloc_fn(void *closure, size_t nmemb, size_t size) {
-    void *p;
-    if (!(p = calloc(nmemb, size))) {
-        return p;
+    void *p = calloc(nmemb, size);
+    if (!p) {
+        panicf("out of memory");
     }
 
     _allocator_closure *c = closure;
@@ -49,9 +49,9 @@ void *_allocator_calloc_fn(void *closure, size_t nmemb, size_t size) {
 }
 
 void *_allocator_malloc_fn(void *closure, size_t size) {
-    void *p;
-    if (!(p = malloc(size))) {
-        return p;
+    void *p = malloc(size);
+    if (!p) {
+        panicf("out of memory");
     }
 
     _allocator_closure *c = closure;
@@ -63,9 +63,9 @@ void *_allocator_malloc_fn(void *closure, size_t size) {
 }
 
 void *_allocator_realloc_fn(void *closure, void *ptr, size_t size) {
-    void *p;
-    if (!(p = realloc(ptr, size))) {
-        return p;
+    void *p = realloc(ptr, size);
+    if (!p) {
+        panicf("out of memory");
     }
 
     _allocator_closure *c = closure;
@@ -91,7 +91,7 @@ void *_allocator_realloc_fn(void *closure, void *ptr, size_t size) {
 err_t alloc_pool_get_allocator(alloc_pool_t *p, alloc_t *out) {
     _allocator_closure *closures = malloc(3 * sizeof(_allocator_closure));
     if (!closures) {
-        return ERROR_OUT_OF_MEMORY;
+        panicf("out of memory");
     }
 
     err_t err = slice_append(&p->objs, &(_object_t) {
@@ -109,8 +109,8 @@ err_t alloc_pool_get_allocator(alloc_pool_t *p, alloc_t *out) {
     closures[2].fn = _allocator_realloc_fn;
     closures[2].pool = p;
 
-    out->calloc = (calloc_t *) &closures[0].fn;
-    out->malloc = (malloc_t *) &closures[1].fn;
-    out->realloc = (realloc_t *) &closures[2].fn;
+    out->calloc = (calloc_t * ) & closures[0].fn;
+    out->malloc = (malloc_t * ) & closures[1].fn;
+    out->realloc = (realloc_t * ) & closures[2].fn;
     return ERROR_OK;
 }
