@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ssl-tunnel/errors.h>
 
 extern const int POLL_READ;

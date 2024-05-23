@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ssl-tunnel/errors.h>
 
 extern const err_t ERROR_INVALID_USAGE;

@@ -3,26 +3,48 @@
 #include <ssl-tunnel/errors.h>
 #include <ssl-tunnel/flag.h>
 #include <ssl-tunnel/fd.h>
+#include <ssl-tunnel/config.h>
+#include <ssl-tunnel/proto.h>
 
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
+#include <netinet/in.h>
+#include <errno.h>
 
 typedef struct {
+    config_t cfg;
+
     int tun_fd;
     int server_fd;
     int poll_fd;
+
+    alloc_t allocator;
+    slice_t recv_buf;
+    slice_t send_buf;
+
+    // a single client address
+    struct sockaddr_in client_addr;
+
     volatile bool sig_received;
-} server;
+} server_t;
 
 const err_t ERROR_IFCONFIG_FAILED = {
         .ok = false,
         .msg = "error executing ifconfig"
 };
 
-err_t _ifconfig_device_up() {
-    int status = system("ifconfig tun0 10.8.0.1 10.8.0.2 mtu 1500 netmask 255.255.255.255 up");
+err_t _ifconfig_device_up(const config_t *cfg) {
+    char *fmt = "ifconfig %s 10.8.0.1 10.8.0.2 mtu %d netmask 255.255.255.255 up";
+
+    char *result_cmd = malloc(snprintf(0, 0, fmt, cfg->device_name, cfg->device_mtu) + 1);
+    sprintf(result_cmd, fmt, cfg->device_name, cfg->device_mtu);
+
+    printf("%s\n", result_cmd);
+    int status = system(result_cmd);
+    free(result_cmd);
+
     if (status != 0) {
         return ERROR_IFCONFIG_FAILED;
     }
@@ -30,13 +52,104 @@ err_t _ifconfig_device_up() {
     return ERROR_OK;
 }
 
-err_t _handle_socket_read() {
+typedef struct {
+    int len;
+    proto_wire_t buf;
+} wire_data_t;
+
+void _handle_socket_read(server_t *srv) {
     printf("socket read\n");
-    return ERROR_OK;
+
+    // udp -> queue
+    for (wire_data_t d; 1; ) {
+        d.len = recvfrom(srv->server_fd, d.buf.data, MAX_MTU, 0, (struct sockaddr *) &srv->client_addr,
+                &(unsigned int) {sizeof(struct sockaddr_in)});
+        if (d.len < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+
+            panicf("error calling recvfrom (errno %d)", errno);
+        }
+        if (d.len == MAX_MTU) {
+            printf("warn: recvfrom with MAX_MTU\n");
+        }
+
+        err_t err;
+        if (!ERR_OK(err = slice_append(&srv->recv_buf, &d))) {
+            panicf("error calling slice_append on recv_buf (err.msg %s)", err.msg);
+        }
+    }
+
+    // queue -> tun
+    while (srv->recv_buf.len > 0) {
+        wire_data_t *d = srv->recv_buf.array;
+
+        int n = write(srv->tun_fd, d->buf.data, d->len);
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+
+            panicf("error calling write (errno %d)", errno);
+        }
+        if (n != d->len) {
+            panicf("could not write whole buffer into device");
+        }
+
+        err_t err;
+        if (!ERR_OK(err = slice_remove(&srv->recv_buf, 0))) {
+            panicf("error calling slice_remove on recv_buf (err.msg %s)", err.msg);
+        }
+    }
 }
 
-err_t _handle_tun_read() {
+void _handle_tun_read(server_t *srv) {
     printf("tun read\n");
+
+    // tun -> queue
+    for (wire_data_t d; 1; ) {
+        d.len = read(srv->tun_fd, d.buf.data, MAX_MTU);
+        if (d.len < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+
+            panicf("error calling read (errno %d)", errno);
+        }
+        if (d.len == MAX_MTU) {
+            printf("warn: recvfrom with MAX_MTU\n");
+        }
+
+        err_t err;
+        if (!ERR_OK(err = slice_append(&srv->send_buf, &d))) {
+            panicf("error calling slice_append on send_buf (err.msg %s)", err.msg);
+        }
+    }
+
+    // queue -> udp
+    while (srv->send_buf.len > 0) {
+        wire_data_t *d = srv->send_buf.array;
+
+        int n = sendto(srv->server_fd, d->buf.data, d->len, 0,
+                       (const struct sockaddr *) &srv->client_addr, sizeof(struct sockaddr_in));
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+
+            panicf("error calling sendto (errno %d)", errno);
+        }
+        if (n != d->len) {
+            panicf("could not send whole buffer to client");
+        }
+
+        err_t err;
+        if (!ERR_OK(err = slice_remove(&srv->send_buf, 0))) {
+            panicf("error calling slice_remove on send_buf (err.msg %s)", err.msg);
+        }
+    }
+
     return ERROR_OK;
 }
 
@@ -50,12 +163,30 @@ err_t server_main(int argc, char *argv[]) {
         goto cleanup_1;
     }
 
-    server srv;
-    memset(&srv, 0, sizeof(server));
+    server_t srv;
+    memset(&srv, 0, sizeof(server_t));
+
+    if (!ERR_OK(err = config_read(cfg_path, &srv.cfg))) {
+        goto cleanup_1;
+    }
+
+    if (!ERR_OK(err = alloc_pool_get_allocator(&p, &srv.allocator))) {
+        goto cleanup_1;
+    }
+
+    slice_init(&srv.recv_buf, sizeof(wire_data_t), (optional_alloc_t) {
+        .present = true,
+        .value = srv.allocator
+    });
+
+    slice_init(&srv.send_buf, sizeof(wire_data_t), (optional_alloc_t) {
+        .present = true,
+        .value = srv.allocator
+    });
 
     signal_init(&srv.sig_received);
 
-    if (!ERR_OK(err = fd_tun_open("tun0", &srv.tun_fd))) {
+    if (!ERR_OK(err = fd_tun_open(srv.cfg.device_name, &srv.tun_fd))) {
         goto cleanup_1;
     }
 
@@ -63,11 +194,11 @@ err_t server_main(int argc, char *argv[]) {
         goto cleanup_2;
     }
 
-    if (!ERR_OK(err = _ifconfig_device_up())) {
+    if (!ERR_OK(err = _ifconfig_device_up(&srv.cfg))) {
         goto cleanup_2;
     }
 
-    if (!ERR_OK(err = fd_udp_server_open(1026, &srv.server_fd))) {
+    if (!ERR_OK(err = fd_udp_server_open(srv.cfg.server_port, &srv.server_fd))) {
         goto cleanup_2;
     }
 
@@ -89,7 +220,7 @@ err_t server_main(int argc, char *argv[]) {
 
     struct epoll_event evs[2];
 
-    printf("server is listening on port %d\n", 1026);
+    printf("server is listening on port %d\n", srv.cfg.server_port);
     while (!srv.sig_received) {
         int fd_ready;
         if (!ERR_OK(err = fd_poll_wait(srv.poll_fd, evs, 2, 0, &fd_ready))) {
@@ -101,7 +232,7 @@ err_t server_main(int argc, char *argv[]) {
             int fd = ev.data.fd;
 
             if (fd == srv.server_fd) {
-                _handle_socket_read();
+                _handle_socket_read(&srv);
                 continue;
             }
 
@@ -109,7 +240,7 @@ err_t server_main(int argc, char *argv[]) {
                 panicf("unexpected fd received");
             }
 
-            _handle_tun_read();
+            _handle_tun_read(&srv);
         }
     }
     printf("signal received, terminating server...\n");

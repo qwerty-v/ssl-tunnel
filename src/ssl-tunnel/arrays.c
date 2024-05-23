@@ -29,28 +29,28 @@ err_t slice_resize(slice_t *s, int new_cap) {
         return ERROR_NEW_CAP_TOO_LOW;
     }
 
-    s->cap = new_cap;
-
-    s->array = allocator_call_realloc(s->allocator, s->array, s->cap * s->element_size);
+    if (s->cap == 0) {
+        s->array = allocator_call_malloc(s->allocator, new_cap * s->element_size);
+    } else {
+        s->array = allocator_call_realloc(s->allocator, s->array, new_cap * s->element_size);
+    }
     if (!s->array) {
         panicf("out of memory");
     }
+
+    s->cap = new_cap;
 
     return ERROR_OK;
 }
 
 err_t slice_append(slice_t *s, const void *element) {
+    err_t err;
     if (s->cap == 0) {
-        s->len = 0;
-        s->cap = 1;
-
-        s->array = allocator_call_malloc(s->allocator, s->element_size);
-        if (!s->array) {
-            panicf("out of memory");
+        if (!ERR_OK(err = slice_resize(s, 1))) {
+            return err;
         }
     }
 
-    err_t err;
     if (s->len == s->cap) {
         if (!ERR_OK(err = slice_resize(s, 2 * s->cap))) {
             return err;
@@ -64,27 +64,37 @@ err_t slice_append(slice_t *s, const void *element) {
     return ERROR_OK;
 }
 
-err_t slice_remove(slice_t *s, int i) {
+err_t _slice_check_bounds(const slice_t *s, int i) {
     if (!(0 <= i && i < s->len)) {
         return ERROR_INDEX_OUT_OF_BOUNDS;
     }
 
-    if (i == s->len - 1) {
-        s->len--;
-        return ERROR_OK;
-    }
-
-    memmove(
-            (uint8_t *) s->array + i * s->element_size,
-            (uint8_t *) s->array + (i + 1) * s->element_size,
-            (s->len - 1 - i) * s->element_size
-    );
     return ERROR_OK;
 }
 
-err_t slice_ith(slice_t *s, int i, void *out) {
-    if (!(0 <= i && i < s->len)) {
-        return ERROR_INDEX_OUT_OF_BOUNDS;
+err_t slice_remove(slice_t *s, int i) {
+    err_t err;
+    if (!ERR_OK(err = _slice_check_bounds(s, i))) {
+        return err;
+    }
+
+    // element to be removed isn't the last element?
+    if (i != s->len - 1) {
+        memmove(
+                (uint8_t *) s->array + i * s->element_size,
+                (uint8_t *) s->array + (i + 1) * s->element_size,
+                (s->len - 1 - i) * s->element_size
+        );
+    }
+    s->len--;
+
+    return ERROR_OK;
+}
+
+err_t slice_ith(const slice_t *s, int i, void *out) {
+    err_t err;
+    if (!ERR_OK(err = _slice_check_bounds(s, i))) {
+        return err;
     }
 
     memcpy(out, (uint8_t *) s->array + i * s->element_size, sizeof(s->element_size));

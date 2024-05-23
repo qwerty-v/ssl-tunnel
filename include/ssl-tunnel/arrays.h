@@ -24,4 +24,4 @@ void slice_init(slice_t *s, size_t element_size, optional_alloc_t allocator);
 err_t slice_resize(slice_t *s, int new_cap);
 err_t slice_append(slice_t *s, const void *element);
 err_t slice_remove(slice_t *s, int i);
-err_t slice_ith(slice_t *s, int i, void *out);
+err_t slice_ith(const slice_t *s, int i, void *out);
