@@ -19,6 +19,8 @@ test: clean
 		src/ssl-tunnel/arrays.c \
 		src/ssl-tunnel/alloc.c \
 		src/ssl-tunnel/errors.c
+	$(CC) $(CFLAGS) -o bin/e2e_client \
+		tests/e2e/client.c
 
 clean:
 	rm -r bin

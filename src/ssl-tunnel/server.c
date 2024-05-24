@@ -36,7 +36,7 @@ const err_t ERROR_IFCONFIG_FAILED = {
 };
 
 err_t _ifconfig_device_up(const config_t *cfg) {
-    char *fmt = "ifconfig %s 10.8.0.1 10.8.0.2 mtu %d netmask 255.255.255.255 up";
+    char *fmt = "ifconfig %s 10.8.0.1 mtu %d netmask 255.255.255.0 up";
 
     char *result_cmd = malloc(snprintf(0, 0, fmt, cfg->device_name, cfg->device_mtu) + 1);
     sprintf(result_cmd, fmt, cfg->device_name, cfg->device_mtu);
@@ -54,15 +54,13 @@ err_t _ifconfig_device_up(const config_t *cfg) {
 
 typedef struct {
     int len;
-    proto_wire_t buf;
+    proto_wire_t packet;
 } wire_data_t;
 
 void _handle_socket_read(server_t *srv) {
-    printf("socket read\n");
-
     // udp -> queue
     for (wire_data_t d; 1; ) {
-        d.len = recvfrom(srv->server_fd, d.buf.data, MAX_MTU, 0, (struct sockaddr *) &srv->client_addr,
+        d.len = recvfrom(srv->server_fd, d.packet.data, MAX_MTU, 0, (struct sockaddr *) &srv->client_addr,
                 &(unsigned int) {sizeof(struct sockaddr_in)});
         if (d.len < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -70,9 +68,6 @@ void _handle_socket_read(server_t *srv) {
             }
 
             panicf("error calling recvfrom (errno %d)", errno);
-        }
-        if (d.len == MAX_MTU) {
-            printf("warn: recvfrom with MAX_MTU\n");
         }
 
         err_t err;
@@ -85,7 +80,7 @@ void _handle_socket_read(server_t *srv) {
     while (srv->recv_buf.len > 0) {
         wire_data_t *d = srv->recv_buf.array;
 
-        int n = write(srv->tun_fd, d->buf.data, d->len);
+        int n = write(srv->tun_fd, d->packet.data, d->len);
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -102,23 +97,22 @@ void _handle_socket_read(server_t *srv) {
             panicf("error calling slice_remove on recv_buf (err.msg %s)", err.msg);
         }
     }
+
+    if (srv->recv_buf.len > 0) {
+        fprintf(stderr, "warn: device busy\n");
+    }
 }
 
 void _handle_tun_read(server_t *srv) {
-    printf("tun read\n");
-
     // tun -> queue
     for (wire_data_t d; 1; ) {
-        d.len = read(srv->tun_fd, d.buf.data, MAX_MTU);
+        d.len = read(srv->tun_fd, d.packet.data, MAX_MTU);
         if (d.len < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
             }
 
             panicf("error calling read (errno %d)", errno);
-        }
-        if (d.len == MAX_MTU) {
-            printf("warn: recvfrom with MAX_MTU\n");
         }
 
         err_t err;
@@ -131,7 +125,7 @@ void _handle_tun_read(server_t *srv) {
     while (srv->send_buf.len > 0) {
         wire_data_t *d = srv->send_buf.array;
 
-        int n = sendto(srv->server_fd, d->buf.data, d->len, 0,
+        int n = sendto(srv->server_fd, d->packet.data, d->len, 0,
                        (const struct sockaddr *) &srv->client_addr, sizeof(struct sockaddr_in));
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -150,7 +144,9 @@ void _handle_tun_read(server_t *srv) {
         }
     }
 
-    return ERROR_OK;
+    if (srv->send_buf.len > 0) {
+        fprintf(stderr, "warn: socket busy\n");
+    }
 }
 
 err_t server_main(int argc, char *argv[]) {
@@ -221,6 +217,8 @@ err_t server_main(int argc, char *argv[]) {
     struct epoll_event evs[2];
 
     printf("server is listening on port %d\n", srv.cfg.server_port);
+    fflush(stdout);
+
     while (!srv.sig_received) {
         int fd_ready;
         if (!ERR_OK(err = fd_poll_wait(srv.poll_fd, evs, 2, 0, &fd_ready))) {
@@ -236,7 +234,7 @@ err_t server_main(int argc, char *argv[]) {
                 continue;
             }
 
-            if (fd != srv.server_fd) {
+            if (fd != srv.tun_fd) {
                 panicf("unexpected fd received");
             }
 
