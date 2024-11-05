@@ -1,11 +1,8 @@
-#include <ssl-tunnel/errors.h>
+#include <ssl-tunnel/lib/errors.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-
-const err_t ERROR_OK = {
-        .ok = true,
-};
+#include <stdarg.h>
 
 void panicf(const char *msg, ...) {
     va_list va;

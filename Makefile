@@ -1,11 +1,17 @@
 CC = gcc
-CFLAGS = -Wall -I include
+CFLAGS = -Wall -Wextra -I include
 LDFLAGS =
 
 all: build
 
 build: clean
-	@find src/ssl-tunnel -name '*.c' | xargs -t $(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel
+	$(CC) $(CFLAGS) $(LDFLAGS) -c src/ssl-tunnel/lib/*.c && \
+	ar rcs bin/libssltunnel.a *.o
+	@find . -maxdepth 1 -name '*.o' -exec rm {} \;
+
+	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel-server \
+	  src/ssl-tunnel/server/*.c \
+	  bin/libssltunnel.a
 
 test: clean
 	$(CC) $(CFLAGS) -o bin/unit_test_arrays \

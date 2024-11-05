@@ -16,8 +16,10 @@ tun only
 no-ssl implementation
 
 ## Run
-    $ docker build -t ssl-tunnel:0.0.1 .
-    $ docker run -d --cap-add=NET_ADMIN -p 1026:1026/udp ssl-tunnel:0.0.1
+    $ docker build -t ssl-tunnel:latest .
+    $ docker run -d --cap-add=NET_ADMIN -p 1026:1026/udp ssl-tunnel:latest
+    $ docker logs ssl-tunnel:latest
+    Segmentation fault (core dumped)
 
 ## Test
-    $ docker build -t ssl-tunnel:0.0.1 . --target=test
+    $ docker build -t ssl-tunnel:latest . --target=test

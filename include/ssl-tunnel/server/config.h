@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ssl-tunnel/errors.h>
+#include <ssl-tunnel/lib/errors.h>
 
 typedef struct {
     int server_port;
@@ -8,4 +8,4 @@ typedef struct {
     char *device_name;
 } config_t;
 
-err_t config_read(const char *cfg_path, config_t *cfg);
+err_t config_read(const char *cfg_path, memory_set_t *m, config_t *cfg);

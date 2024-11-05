@@ -1,50 +1,42 @@
-#include <ssl-tunnel/errors.h>
+#include <ssl-tunnel/lib/errors.h>
 
-#include <linux/if.h>
-#include <linux/if_tun.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/epoll.h>
+#include <linux/if.h> // ifreq, IFNAMSIZ
+#include <linux/if_tun.h> // IFF_NO_PI, IFF_TUN, TUNSETIFF
+#include <fcntl.h> // open, O_RDWR, fcntl, F_SETFL, O_NONBLOCK
+#include <netinet/in.h> // sockaddr_in, htons, INADDR_ANY
+#include <sys/ioctl.h> // ioctl
+#include <sys/socket.h> // socket
+#include <sys/epoll.h> // epoll_create1
 
-const err_t ERROR_OPEN_FAILED = {
-        .ok = false,
+const err_t ERR_OPEN_FAILED = {
         .msg = "error calling open"
 };
 
-const err_t ERROR_IOCTL_FAILED = {
-        .ok = false,
+const err_t ERR_IOCTL_FAILED = {
         .msg = "error calling ioctl"
 };
 
-const err_t ERROR_FCNTL_FAILED = {
-        .ok = false,
+const err_t ERR_FCNTL_FAILED = {
         .msg = "error calling ioctl"
 };
 
-const err_t ERROR_SOCKET_FAILED = {
-        .ok = false,
+const err_t ERR_SOCKET_FAILED = {
         .msg = "error calling socket"
 };
 
-const err_t ERROR_BIND_FAILED = {
-        .ok = false,
+const err_t ERR_BIND_FAILED = {
         .msg = "error calling bind"
 };
 
-const err_t ERROR_EPOLL_CREATE_FAILED = {
-        .ok = false,
+const err_t ERR_EPOLL_CREATE_FAILED = {
         .msg = "error creating epoll"
 };
 
-const err_t ERROR_EPOLL_CTL_FAILED = {
-        .ok = false,
+const err_t ERR_EPOLL_CTL_FAILED = {
         .msg = "error calling epoll_ctl"
 };
 
-const err_t ERROR_EPOLL_WAIT_FAILED = {
-        .ok = false,
+const err_t ERR_EPOLL_WAIT_FAILED = {
         .msg = "error calling epoll_wait"
 };
 
@@ -61,21 +53,21 @@ err_t fd_tun_open(const char *device_name, int *tun_fd) {
 
     int fd = open("/dev/net/tun", O_RDWR);
     if (fd < 0) {
-        return ERROR_OPEN_FAILED;
+        return ERR_OPEN_FAILED;
     }
 
     if (ioctl(fd, TUNSETIFF, (void *) &ifr) < 0) {
-        return ERROR_IOCTL_FAILED;
+        return ERR_IOCTL_FAILED;
     }
 
     *tun_fd = fd;
-    return ERROR_OK;
+    return ENULL;
 }
 
 err_t fd_udp_server_open(int port, int *server_fd) {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
-        return ERROR_SOCKET_FAILED;
+        return ERR_SOCKET_FAILED;
     }
 
     struct sockaddr_in local;
@@ -84,21 +76,21 @@ err_t fd_udp_server_open(int port, int *server_fd) {
     local.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(fd, (const struct sockaddr*) &local, sizeof(struct sockaddr_in)) < 0) {
-        return ERROR_BIND_FAILED;
+        return ERR_BIND_FAILED;
     }
 
     *server_fd = fd;
-    return ERROR_OK;
+    return ENULL;
 }
 
 err_t fd_poll_create(int *poll_fd) {
     int fd = epoll_create1(0);
     if (fd < 0) {
-        return ERROR_EPOLL_CREATE_FAILED;
+        return ERR_EPOLL_CREATE_FAILED;
     }
 
     *poll_fd = fd;
-    return ERROR_OK;
+    return ENULL;
 }
 
 err_t fd_poll_add(int poll_fd, int fd, int flags) {
@@ -116,26 +108,26 @@ err_t fd_poll_add(int poll_fd, int fd, int flags) {
     ev.data.fd = fd;
 
     if (epoll_ctl(poll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) {
-        return ERROR_EPOLL_CTL_FAILED;
+        return ERR_EPOLL_CTL_FAILED;
     }
 
-    return ERROR_OK;
+    return ENULL;
 }
 
 err_t fd_poll_wait(int poll_fd, void *events, int max_events, int timeout_ms, int *out_fd_ready) {
     int n = epoll_wait(poll_fd, (struct epoll_event *) events, max_events, timeout_ms);
     if (n < 0) {
-        return ERROR_EPOLL_WAIT_FAILED;
+        return ERR_EPOLL_WAIT_FAILED;
     }
 
     *out_fd_ready = n;
-    return ERROR_OK;
+    return ENULL;
 }
 
 err_t fd_set_nonblock(int fd) {
     if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) {
-        return ERROR_FCNTL_FAILED;
+        return ERR_FCNTL_FAILED;
     }
 
-    return ERROR_OK;
+    return ENULL;
 }
