@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ssl-tunnel/lib/errors.h>
+#include <ssl-tunnel/lib/err.h>
 
 typedef struct {
     int server_port;

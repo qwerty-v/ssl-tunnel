@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ssl-tunnel/lib/arrays.h> // slice_t
+#include <ssl-tunnel/lib/slice.h> // slice_t
 #include <ssl-tunnel/lib/alloc.h> // alloc_t
 
 typedef struct _memory_set_closure_s _memory_set_closure_t;

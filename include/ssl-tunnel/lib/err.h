@@ -12,5 +12,8 @@ typedef struct {
 
 #define ENULL (err_t){ .msg = NULL }
 
+err_t err_errno();
+
 void panicf(const char *msg, ...);
+
 void vpanicf(const char *msg, va_list va);

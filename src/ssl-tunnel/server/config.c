@@ -1,5 +1,5 @@
 #include <ssl-tunnel/lib/memory.h>
-#include <ssl-tunnel/lib/errors.h>
+#include <ssl-tunnel/lib/err.h>
 #include <ssl-tunnel/server/config.h>
 
 err_t config_read(const char *cfg_path, memory_set_t *m, config_t *cfg) {

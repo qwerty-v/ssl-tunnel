@@ -1,4 +1,4 @@
-#include <ssl-tunnel/lib/errors.h>
+#include <ssl-tunnel/lib/err.h>
 
 #include <signal.h>
 #include <stdbool.h>

@@ -1,7 +1,8 @@
 #include <ssl-tunnel/lib/memory.h>
-#include <ssl-tunnel/lib/errors.h>
+#include <ssl-tunnel/lib/err.h>
 #include <ssl-tunnel/lib/fd.h>
 #include <ssl-tunnel/lib/proto.h>
+#include <ssl-tunnel/lib/deque.h>
 #include <ssl-tunnel/server/signal.h>
 #include <ssl-tunnel/server/config.h>
 
@@ -12,7 +13,7 @@
 #include <netinet/in.h>
 #include <errno.h>
 
-const err_t ERR_IFCONFIG_FAILED = {
+const err_t ERR_SERVER_IFCONFIG_FAILED = {
         .msg = "error executing ifconfig"
 };
 
@@ -25,8 +26,8 @@ typedef struct {
     int server_fd;
     int poll_fd;
 
-    slice_t recv_buf;
-    slice_t send_buf;
+    deque_t recv_buf;
+    deque_t send_buf;
 
     // fixme a single client address
     struct sockaddr_in client_addr;
@@ -43,7 +44,7 @@ static err_t _server_ifconfig_device_up(const config_t *cfg) {
     free(result_cmd);
 
     if (status != 0) {
-        return ERR_IFCONFIG_FAILED;
+        return ERR_SERVER_IFCONFIG_FAILED;
     }
 
     return ENULL;
@@ -67,10 +68,7 @@ static void _server_handle_socket_read(_server_t *srv) {
             panicf("error calling recvfrom (errno %d)", errno);
         }
 
-        err_t err = slice_append(&srv->recv_buf, &d);
-        if (!ERROR_OK(err)) {
-            panicf("error calling slice_append on recv_buf (%s)", err.msg);
-        }
+        deque_push_back(&srv->recv_buf, &d);
     }
 
     // queue -> tun
@@ -89,9 +87,9 @@ static void _server_handle_socket_read(_server_t *srv) {
             panicf("could not write whole buffer into device");
         }
 
-        err_t err = slice_remove(&srv->recv_buf, 0);
+        err_t err = deque_pop_front(&srv->recv_buf);
         if (!ERROR_OK(err)) {
-            panicf("error calling slice_remove on recv_buf (%s)", err.msg);
+            panicf("error calling deque_pop_front on recv_buf (%s)", err.msg);
         }
     }
 
@@ -112,10 +110,7 @@ static void _server_handle_tun_read(_server_t *srv) {
             panicf("error calling read (errno %d)", errno);
         }
 
-        err_t err = slice_append(&srv->send_buf, &d);
-        if (!ERROR_OK(err)) {
-            panicf("error calling slice_append on send_buf (%s)", err.msg);
-        }
+        deque_push_back(&srv->send_buf, &d);
     }
 
     // queue -> udp
@@ -135,9 +130,9 @@ static void _server_handle_tun_read(_server_t *srv) {
             panicf("could not send whole buffer to client");
         }
 
-        err_t err = slice_remove(&srv->send_buf, 0);
+        err_t err = deque_pop_front(&srv->send_buf);
         if (!ERROR_OK(err)) {
-            panicf("error calling slice_remove on send_buf (%s)", err.msg);
+            panicf("error calling deque_pop_front on send_buf (%s)", err.msg);
         }
     }
 
@@ -155,8 +150,8 @@ static void _server_init(_server_t *srv) {
     srv->server_fd = -1;
     srv->poll_fd = -1;
 
-    slice_init(&srv->recv_buf, sizeof(_server_wire_t), &srv->m.allocator);
-    slice_init(&srv->send_buf, sizeof(_server_wire_t), &srv->m.allocator);
+    deque_init(&srv->recv_buf, sizeof(_server_wire_t), &srv->m.allocator);
+    deque_init(&srv->send_buf, sizeof(_server_wire_t), &srv->m.allocator);
 }
 
 static void _server_free(_server_t *srv) {
