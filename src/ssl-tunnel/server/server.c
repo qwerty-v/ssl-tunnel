@@ -3,6 +3,7 @@
 #include <ssl-tunnel/lib/fd.h>
 #include <ssl-tunnel/lib/proto.h>
 #include <ssl-tunnel/lib/deque.h>
+#include <ssl-tunnel/lib/io.h>
 #include <ssl-tunnel/server/signal.h>
 #include <ssl-tunnel/server/config.h>
 
@@ -10,8 +11,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
-#include <netinet/in.h>
-#include <errno.h>
 
 const err_t ERR_SERVER_IFCONFIG_FAILED = {
         .msg = "error executing ifconfig"
@@ -50,93 +49,24 @@ static err_t _server_ifconfig_device_up(const config_t *cfg) {
     return ENULL;
 }
 
-typedef struct {
-    int len;
-    proto_wire_t packet;
-} _server_wire_t;
-
 static void _server_handle_socket_read(_server_t *srv) {
-    // udp -> queue
-    for (_server_wire_t d; 1; ) {
-        d.len = recvfrom(srv->server_fd, d.packet.data, MAX_MTU, 0, (struct sockaddr *) &srv->client_addr,
-                &(unsigned int) {sizeof(struct sockaddr_in)});
-        if (d.len < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                break;
-            }
+    io_udp_read(srv->server_fd, &srv->recv_buf, (struct sockaddr *) &srv->client_addr,
+            &(unsigned int) {sizeof(struct sockaddr_in)});
 
-            panicf("error calling recvfrom (errno %d)", errno);
-        }
+    io_tun_write(srv->tun_fd, &srv->recv_buf);
 
-        deque_push_back(&srv->recv_buf, &d);
-    }
-
-    // queue -> tun
-    while (srv->recv_buf.len > 0) {
-        const _server_wire_t *d = srv->recv_buf.array;
-
-        int n = write(srv->tun_fd, d->packet.data, d->len);
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                break;
-            }
-
-            panicf("error calling write (errno %d)", errno);
-        }
-        if (n != d->len) {
-            panicf("could not write whole buffer into device");
-        }
-
-        err_t err = deque_pop_front(&srv->recv_buf);
-        if (!ERROR_OK(err)) {
-            panicf("error calling deque_pop_front on recv_buf (%s)", err.msg);
-        }
-    }
-
-    if (srv->recv_buf.len > 0) {
+    if (srv->recv_buf->len > 0) {
         fprintf(stderr, "warn: device busy\n");
     }
 }
 
 static void _server_handle_tun_read(_server_t *srv) {
-    // tun -> queue
-    for (_server_wire_t d; 1; ) {
-        d.len = read(srv->tun_fd, d.packet.data, MAX_MTU);
-        if (d.len < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                break;
-            }
+    io_tun_read(srv->tun_fd, &srv->send_buf);
 
-            panicf("error calling read (errno %d)", errno);
-        }
+    io_udp_write(srv->server_fd, &srv->send_buf, (const struct sockaddr *) &srv->client_addr,
+                 sizeof(struct sockaddr_in));
 
-        deque_push_back(&srv->send_buf, &d);
-    }
-
-    // queue -> udp
-    while (srv->send_buf.len > 0) {
-        const _server_wire_t *d = srv->send_buf.array;
-
-        int n = sendto(srv->server_fd, d->packet.data, d->len, 0,
-                       (const struct sockaddr *) &srv->client_addr, sizeof(struct sockaddr_in));
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                break;
-            }
-
-            panicf("error calling sendto (errno %d)", errno);
-        }
-        if (n != d->len) {
-            panicf("could not send whole buffer to client");
-        }
-
-        err_t err = deque_pop_front(&srv->send_buf);
-        if (!ERROR_OK(err)) {
-            panicf("error calling deque_pop_front on send_buf (%s)", err.msg);
-        }
-    }
-
-    if (srv->send_buf.len > 0) {
+    if (srv->send_buf->len > 0) {
         fprintf(stderr, "warn: socket busy\n");
     }
 }
@@ -150,8 +80,8 @@ static void _server_init(_server_t *srv) {
     srv->server_fd = -1;
     srv->poll_fd = -1;
 
-    deque_init(&srv->recv_buf, sizeof(_server_wire_t), &srv->m.allocator);
-    deque_init(&srv->send_buf, sizeof(_server_wire_t), &srv->m.allocator);
+    deque_init(&srv->recv_buf, sizeof(io_wire_t), &srv->m.allocator);
+    deque_init(&srv->send_buf, sizeof(io_wire_t), &srv->m.allocator);
 }
 
 static void _server_free(_server_t *srv) {

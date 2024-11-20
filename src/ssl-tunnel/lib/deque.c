@@ -60,10 +60,12 @@ void deque_push_back(deque_t *d, const void *element) {
     d->len++;
 }
 
-err_t deque_pop_back(deque_t *d) {
+err_t deque_pop_back(deque_t *d, void *out_dst) {
     if (d->len == 0) {
         return ERR_DEQUE_EMPTY;
     }
+
+    memcpy(out_dst, d->array + d->back * d->element_size, d->element_size);
 
     d->len--;
     d->back--;
@@ -97,10 +99,12 @@ void deque_push_front(deque_t *d, const void *element) {
     d->len++;
 }
 
-err_t deque_pop_front(deque_t *d) {
+err_t deque_pop_front(deque_t *d, void *out_dst) {
     if (d->len == 0) {
         return ERR_DEQUE_EMPTY;
     }
+
+    memcpy(out_dst, d->array + d->front * d->element_size, d->element_size);
 
     d->len--;
     d->front++;

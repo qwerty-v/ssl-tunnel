@@ -20,8 +20,8 @@ WORKDIR /app
 
 RUN apk add --update bash iptables libc6-compat
 
-COPY --from=builder /app/bin/ssl-tunnel-server .
+COPY --from=builder /app/bin/ssl-tunnel-server ./ssl-tunnel
 COPY ./scripts/docker_entrypoint.sh .
-COPY ./config.yaml .
+COPY ./config.yaml /etc/ssl-tunnel/server.yaml
 
 CMD ["./docker_entrypoint.sh"]

@@ -24,8 +24,8 @@ err_t deque_resize(deque_t *d, size_t new_cap);
 
 void deque_push_back(deque_t *d, const void *element);
 
-err_t deque_pop_back(deque_t *d);
+err_t deque_pop_back(deque_t *d, void *out_dst);
 
 void deque_push_front(deque_t *d, const void *element);
 
-err_t deque_pop_front(deque_t *d);
+err_t deque_pop_front(deque_t *d, void *out_dst);
