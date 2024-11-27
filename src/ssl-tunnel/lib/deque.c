@@ -30,7 +30,10 @@ err_t deque_resize(deque_t *d, size_t new_cap) {
         memcpy(new_arr + i * d->element_size, d->array + old_ind * d->element_size, d->element_size);
     }
 
-    alloc_free(d->allocator, d->array);
+    if (d->cap > 0) {
+        alloc_free(d->allocator, d->array);
+    }
+
     d->array = new_arr;
     d->front = 0;
     d->back = d->len - 1;

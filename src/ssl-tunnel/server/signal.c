@@ -1,5 +1,3 @@
-#include <ssl-tunnel/lib/err.h>
-
 #include <signal.h>
 #include <stdbool.h>
 #include <stdatomic.h>

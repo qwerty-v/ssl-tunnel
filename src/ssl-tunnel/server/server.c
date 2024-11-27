@@ -55,7 +55,7 @@ static void _server_handle_socket_read(_server_t *srv) {
 
     io_tun_write(srv->tun_fd, &srv->recv_buf);
 
-    if (srv->recv_buf->len > 0) {
+    if (srv->recv_buf.len > 0) {
         fprintf(stderr, "warn: device busy\n");
     }
 }
@@ -66,7 +66,7 @@ static void _server_handle_tun_read(_server_t *srv) {
     io_udp_write(srv->server_fd, &srv->send_buf, (const struct sockaddr *) &srv->client_addr,
                  sizeof(struct sockaddr_in));
 
-    if (srv->send_buf->len > 0) {
+    if (srv->send_buf.len > 0) {
         fprintf(stderr, "warn: socket busy\n");
     }
 }

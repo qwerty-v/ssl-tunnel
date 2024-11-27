@@ -6,7 +6,8 @@ AR = ar
 all: build
 
 build: clean
-	$(CC) $(CFLAGS) $(LDFLAGS) -c src/ssl-tunnel/lib/*.c && \
+	$(CC) -shared -fPIC $(CFLAGS) $(LDFLAGS) -o bin/libssltunnel.so src/ssl-tunnel/lib/*.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -c src/ssl-tunnel/lib/*.c
 	$(AR) rcs bin/libssltunnel.a *.o
 	@find . -maxdepth 1 -name '*.o' -exec rm {} \;
 

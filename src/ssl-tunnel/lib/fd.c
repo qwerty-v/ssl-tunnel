@@ -51,6 +51,20 @@ err_t fd_udp_server_open(int port, int *server_fd) {
     return ENULL;
 }
 
+err_t fd_udp_client_open(const struct sockaddr *addr, socklen_t addr_len, int *out_fd) {
+    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (fd < 0) {
+        return err_errno();
+    }
+
+    if (connect(fd, addr, addr_len) < 0) {
+        return err_errno();
+    }
+
+    *out_fd = fd;
+    return ENULL;
+}
+
 err_t fd_poll_create(int *poll_fd) {
     int fd = epoll_create1(0);
     if (fd < 0) {
