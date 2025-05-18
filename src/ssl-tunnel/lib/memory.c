@@ -7,90 +7,70 @@
 #include <stddef.h>
 #include <stdint.h>
 
-struct _memory_set_closure_s {
-    void *fn;
-    memory_set_t *m;
-};
+static void *memory_set_calloc_fn(void *extra, size_t nmemb, size_t size);
 
-typedef struct {
-    void *memory_ptr;
-} _memory_set_element_t;
+static void *memory_set_malloc_fn(void *extra, size_t size);
 
-static void *_memory_set_calloc_closure(void *closure, size_t nmemb, size_t size);
+static void *memory_set_realloc_fn(void *extra, void *ptr, size_t size);
 
-static void *_memory_set_malloc_closure(void *closure, size_t size);
-
-static void *_memory_set_realloc_closure(void *closure, void *ptr, size_t size);
-
-static void _memory_set_free_closure(void *closure, void *ptr);
-
-static void _memory_set_append(memory_set_t *m, void *memory_ptr);
+static void memory_set_free_fn(void *extra, void *ptr);
 
 void memory_set_init(memory_set_t *m) {
     memset(m, 0, sizeof(memory_set_t));
 
-    slice_init(&m->allocations, sizeof(_memory_set_element_t), alloc_std);
+    slice_init((slice_any_t *) &m->ptrs, sizeof(void *), &alloc_std);
 
-    m->_closures = malloc(4 * sizeof(_memory_set_closure_t));
-    if (!m->_closures) {
-        panicf("out of memory");
-    }
+    m->alloc = (alloc_t) {
+            .calloc_fn = &memory_set_calloc_fn,
+            .malloc_fn = &memory_set_malloc_fn,
+            .realloc_fn = &memory_set_realloc_fn,
+            .free_fn = &memory_set_free_fn,
 
-    m->_closures[0].fn = &_memory_set_calloc_closure;
-    m->_closures[0].m = m;
-    m->_closures[1].fn = &_memory_set_malloc_closure;
-    m->_closures[1].m = m;
-    m->_closures[2].fn = &_memory_set_realloc_closure;
-    m->_closures[2].m = m;
-    m->_closures[3].fn = &_memory_set_free_closure;
-    m->_closures[3].m = m;
-
-    m->allocator = (alloc_t) {
-            ._calloc = (alloc_calloc_fn_t * )((uint8_t * ) & m->_closures[0] + offsetof(_memory_set_closure_t, fn)),
-            ._malloc = (alloc_malloc_fn_t * )((uint8_t * ) & m->_closures[1] + offsetof(_memory_set_closure_t, fn)),
-            ._realloc = (alloc_realloc_fn_t * )((uint8_t * ) & m->_closures[2] + offsetof(_memory_set_closure_t, fn)),
-            ._free = (alloc_free_fn_t * )((uint8_t * ) & m->_closures[3] + offsetof(_memory_set_closure_t, fn))
+            .extra = m
     };
 }
 
-static void *_memory_set_calloc_closure(void *closure, size_t nmemb, size_t size) {
-    void *memory_ptr = calloc(nmemb, size);
-    if (!memory_ptr) {
-        panicf("out of memory");
-    }
-
-    _memory_set_closure_t *c = closure;
-
-    _memory_set_append(c->m, memory_ptr);
-
-    return memory_ptr;
+static void memory_set_append(memory_set_t *m, void *ptr) {
+    slice_append((slice_any_t *) &m->ptrs, ptr);
 }
 
-static void *_memory_set_malloc_closure(void *closure, size_t size) {
-    void *memory_ptr = malloc(size);
-    if (!memory_ptr) {
+static void *memory_set_calloc_fn(void *extra, size_t nmemb, size_t size) {
+    void *ptr = calloc(nmemb, size);
+    if (!ptr) {
         panicf("out of memory");
     }
 
-    _memory_set_closure_t *c = closure;
+    memory_set_t *m = extra;
 
-    _memory_set_append(c->m, memory_ptr);
+    memory_set_append(m, ptr);
 
-    return memory_ptr;
+    return ptr;
 }
 
-static void *_memory_set_realloc_closure(void *closure, void *ptr, size_t size) {
-    void *memory_ptr = realloc(ptr, size);
-    if (!memory_ptr) {
+static void *memory_set_malloc_fn(void *extra, size_t size) {
+    void *ptr = malloc(size);
+    if (!ptr) {
         panicf("out of memory");
     }
 
-    _memory_set_closure_t *c = closure;
-    _memory_set_element_t *arr = c->m->allocations.array;
+    memory_set_t *m = extra;
+
+    memory_set_append(m, ptr);
+
+    return ptr;
+}
+
+static void *memory_set_realloc_fn(void *extra, void *ptr, size_t size) {
+    void *new_ptr = realloc(ptr, size);
+    if (!new_ptr) {
+        panicf("out of memory");
+    }
+
+    memory_set_t *m = extra;
 
     int to_update = -1;
-    for (int i = 0; i < (int) c->m->allocations.len; i++) {
-        if (arr[i].memory_ptr == memory_ptr) {
+    for (int i = 0; i < (int) m->ptrs.len; i++) {
+        if (m->ptrs.array[i] == ptr) {
             to_update = i;
             break;
         }
@@ -99,46 +79,40 @@ static void *_memory_set_realloc_closure(void *closure, void *ptr, size_t size) 
         panicf("call to realloc without prior allocation");
     }
 
-    arr[to_update].memory_ptr = memory_ptr;
+    m->ptrs.array[to_update] = new_ptr;
 
-    return memory_ptr;
+    return new_ptr;
 }
 
-static void _memory_set_free_closure(void *closure, void *ptr) {
+static void memory_set_free_fn(void *extra, void *ptr) {
     free(ptr);
 
-    _memory_set_closure_t *c = closure;
-    _memory_set_element_t *arr = c->m->allocations.array;
+    memory_set_t *m = extra;
 
-    for (int i = 0; i < (int) c->m->allocations.len; i++) {
-        if (arr[i].memory_ptr == ptr) {
-            err_t err = slice_remove(&c->m->allocations, i);
-            if (!ERROR_OK(err)) {
-                panicf("error removing allocated memory pointer: %s", err.msg);
-            }
-            return;
+    int to_remove = -1;
+    for (int i = 0; i < (int) m->ptrs.len; i++) {
+        if (m->ptrs.array[i] == ptr) {
+            to_remove = i;
+            break;
         }
     }
+    if (to_remove == -1) {
+        panicf("call to free without prior allocation");
+    }
 
-    panicf("free failed: unable to locate specified memory pointer");
+    err_t err = slice_remove((slice_any_t *) &m->ptrs, to_remove);
+    if (!ERROR_OK(err)) {
+        panicf("error removing allocated memory pointer: %s", err.msg);
+    }
 }
 
 void memory_set_free(memory_set_t *m) {
-    _memory_set_element_t *arr = m->allocations.array;
-    for (int i = 0; i < (int) m->allocations.len; i++) {
-        free(arr[i].memory_ptr);
+    for (int i = 0; i < (int) m->ptrs.len; i++) {
+        free(m->ptrs.array[i]);
     }
 
-    if (m->allocations.cap > 0) {
-        free(m->allocations.array);
+    // alloc_std won't free itself
+    if (m->ptrs.cap > 0) {
+        free(m->ptrs.array);
     }
-
-    free(m->_closures);
 }
-
-static void _memory_set_append(memory_set_t *m, void *memory_ptr) {
-    slice_append(&m->allocations, &(_memory_set_element_t) {
-            .memory_ptr = memory_ptr,
-    });
-}
-

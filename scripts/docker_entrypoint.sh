@@ -11,4 +11,4 @@ fi
 # nat setup
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
-exec ./ssl-tunnel --cfg config.yaml
+exec ./ssl-tunnel

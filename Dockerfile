@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 as builder
+FROM ubuntu:24.04 AS builder
 WORKDIR /app
 
 RUN apt-get update && \
@@ -8,7 +8,7 @@ COPY . .
 
 RUN make
 
-FROM builder as test
+FROM builder AS test
 
 RUN make test
 
@@ -20,8 +20,8 @@ WORKDIR /app
 
 RUN apk add --update bash iptables libc6-compat
 
-COPY --from=builder /app/bin/ssl-tunnel-server ./ssl-tunnel
+COPY --from=builder /app/bin/ssl-tunnel ./ssl-tunnel
 COPY ./scripts/docker_entrypoint.sh .
-COPY ./config.yaml /etc/ssl-tunnel/server.yaml
+COPY ./config.yaml /etc/ssl-tunnel/cfg.yaml
 
 CMD ["./docker_entrypoint.sh"]

@@ -9,10 +9,6 @@ and OpenVPN protocol overview [here](https://build.openvpn.net/doxygen/network_p
 ## Current limitations
 one client only
 
-udp only
-
-tun only
-
 no-ssl implementation
 
 ## Run

@@ -8,10 +8,10 @@
 #include <sys/socket.h> // socket
 #include <sys/epoll.h> // epoll_create1
 
-const int POLL_READ = 1 << 0;
-const int POLL_WRITE = 1 << 1;
+const int FD_POLL_READ = 1 << 0;
+const int FD_POLL_WRITE = 1 << 1;
 
-err_t fd_tun_open(const char *device_name, int *tun_fd) {
+err_t fd_tun_open(const char *device_name, int *out_tun_fd) {
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(struct ifreq));
 
@@ -28,14 +28,25 @@ err_t fd_tun_open(const char *device_name, int *tun_fd) {
         return err_errno();
     }
 
-    *tun_fd = fd;
+    *out_tun_fd = fd;
     return ENULL;
 }
 
-err_t fd_udp_server_open(int port, int *server_fd) {
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+err_t fd_udp_open(int *out_fd) {
+    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (fd < 0) {
         return err_errno();
+    }
+
+    *out_fd = fd;
+    return ENULL;
+}
+
+err_t fd_udp_server_open(int port, int *out_fd) {
+    int fd;
+    err_t err = fd_udp_open(&fd);
+    if (!ERROR_OK(err)) {
+        return err;
     }
 
     struct sockaddr_in local;
@@ -47,31 +58,17 @@ err_t fd_udp_server_open(int port, int *server_fd) {
         return err_errno();
     }
 
-    *server_fd = fd;
-    return ENULL;
-}
-
-err_t fd_udp_client_open(const struct sockaddr *addr, socklen_t addr_len, int *out_fd) {
-    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (fd < 0) {
-        return err_errno();
-    }
-
-    if (connect(fd, addr, addr_len) < 0) {
-        return err_errno();
-    }
-
     *out_fd = fd;
     return ENULL;
 }
 
-err_t fd_poll_create(int *poll_fd) {
+err_t fd_poll_create(int *out_poll_fd) {
     int fd = epoll_create1(0);
     if (fd < 0) {
         return err_errno();
     }
 
-    *poll_fd = fd;
+    *out_poll_fd = fd;
     return ENULL;
 }
 
@@ -79,10 +76,10 @@ err_t fd_poll_add(int poll_fd, int fd, int flags) {
     struct epoll_event ev;
 
     int f = 0;
-    if (flags & POLL_READ) {
+    if (flags & FD_POLL_READ) {
         f |= EPOLLIN;
     }
-    if (flags & POLL_WRITE) {
+    if (flags & FD_POLL_WRITE) {
         f |= EPOLLOUT;
     }
 

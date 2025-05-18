@@ -12,24 +12,26 @@ const err_t ERR_SLICE_INDEX_OUT_OF_BOUNDS = {
         .msg = "index is out of bounds"
 };
 
-static bool _slice_can_access(const slice_t *s, int i);
-
-void slice_init(slice_t *s, size_t element_size, const alloc_t *a) {
-    memset(s, 0, sizeof(slice_t));
-
-    s->element_size = element_size;
-    s->allocator = a;
+static bool can_access(const slice_any_t *s, int i) {
+    return 0 <= i && (size_t)i < s->len;
 }
 
-err_t slice_resize(slice_t *s, size_t new_cap) {
+void slice_init(slice_any_t *s, size_t element_size, const alloc_t *a) {
+    memset(s, 0, sizeof(slice_any_t));
+
+    s->element_size = element_size;
+    s->alloc = a;
+}
+
+err_t slice_resize(slice_any_t *s, size_t new_cap) {
     if (s->cap >= new_cap) {
         return ERR_SLICE_CAP_TOO_LOW;
     }
 
     if (s->cap == 0) {
-        s->array = alloc_malloc(s->allocator, new_cap * s->element_size);
+        s->array = alloc_malloc(s->alloc, new_cap * s->element_size);
     } else {
-        s->array = alloc_realloc(s->allocator, s->array, new_cap * s->element_size);
+        s->array = alloc_realloc(s->alloc, s->array, new_cap * s->element_size);
     }
     if (!s->array) {
         panicf("out of memory");
@@ -40,7 +42,7 @@ err_t slice_resize(slice_t *s, size_t new_cap) {
     return ENULL;
 }
 
-void slice_append(slice_t *s, const void *element) {
+void slice_append(slice_any_t *s, const void *element) {
     if (s->len == s->cap) {
         int new_cap = 2 * s->cap;
         if (new_cap == 0) {
@@ -58,8 +60,8 @@ void slice_append(slice_t *s, const void *element) {
     s->len++;
 }
 
-err_t slice_remove(slice_t *s, int i) {
-    if (!_slice_can_access(s, i)) {
+err_t slice_remove(slice_any_t *s, int i) {
+    if (!can_access(s, i)) {
         return ERR_SLICE_INDEX_OUT_OF_BOUNDS;
     }
 
@@ -76,15 +78,11 @@ err_t slice_remove(slice_t *s, int i) {
     return ENULL;
 }
 
-err_t slice_ith(const slice_t *s, int i, void *out) {
-    if (!_slice_can_access(s, i)) {
+err_t slice_ith(const slice_any_t *s, int i, void *out) {
+    if (!can_access(s, i)) {
         return ERR_SLICE_INDEX_OUT_OF_BOUNDS;
     }
 
     memcpy(out, (uint8_t *) s->array + i * s->element_size, sizeof(s->element_size));
     return ENULL;
-}
-
-static bool _slice_can_access(const slice_t *s, int i) {
-    return 0 <= i && (size_t)i < s->len;
 }

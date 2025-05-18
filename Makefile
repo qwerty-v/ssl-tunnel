@@ -1,18 +1,23 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -I include
+CFLAGS = -Wall -Wextra -I"$(shell realpath include)"
 LDFLAGS =
 AR = ar
 
 all: build
 
 build: clean
-	$(CC) -shared -fPIC $(CFLAGS) $(LDFLAGS) -o bin/libssltunnel.so src/ssl-tunnel/lib/*.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -c src/ssl-tunnel/lib/*.c
-	$(AR) rcs bin/libssltunnel.a *.o
-	@find . -maxdepth 1 -name '*.o' -exec rm {} \;
+	cp src/ssl-tunnel/lib/*.c bin/libssltunnel
+	cp src/ssl-tunnel/backend/*.c bin/libssltunnel
 
-	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel-server \
-	  src/ssl-tunnel/server/*.c \
+	$(CC) -shared -fPIC $(CFLAGS) $(LDFLAGS) -o bin/libssltunnel.so bin/libssltunnel/*.c
+
+	@for f in bin/libssltunnel/*.c; do \
+		$(CC) $(CFLAGS) $(LDFLAGS) -c $$f -o bin/libssltunnel/$$(basename $$f .c).o; \
+	done
+	$(AR) rcs bin/libssltunnel.a bin/libssltunnel/*.o
+
+	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel \
+	  deamon/linux/*.c \
 	  bin/libssltunnel.a
 
 test: clean
@@ -32,4 +37,4 @@ test: clean
 
 clean:
 	rm -r bin
-	mkdir bin
+	mkdir -p bin/libssltunnel
