@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ssl-tunnel/lib/err.h> // err_t
+#include <ssl-tunnel/lib/err.h>
 
 #include <stdatomic.h> // atomic_bool
 

@@ -1,4 +1,4 @@
-#include <ssl-tunnel/memory.h>
+#include <ssl-tunnel/lib/memscope.h>
 
 #include <stdio.h>
 #include <assert.h>

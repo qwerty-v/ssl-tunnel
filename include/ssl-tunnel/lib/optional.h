@@ -8,6 +8,12 @@ struct {              \
     T v;              \
 }
 
+#define optional_arr_t(T, n) \
+struct {                     \
+    bool present;            \
+    T v[n];                  \
+}
+
 #define optional_some(vv) { .present = true, .v = vv }
 #define optional_none() { .present = false }
 

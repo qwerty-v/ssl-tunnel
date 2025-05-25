@@ -1,4 +1,4 @@
-#include <ssl-tunnel/lib/memory.h>
+#include <ssl-tunnel/lib/memscope.h>
 #include <ssl-tunnel/lib/alloc.h>
 #include <ssl-tunnel/lib/err.h>
 #include <ssl-tunnel/lib/slice.h>
@@ -7,66 +7,66 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static void *memory_set_calloc_fn(void *extra, size_t nmemb, size_t size);
+static void *memscope_calloc_fn(void *extra, size_t nmemb, size_t size);
 
-static void *memory_set_malloc_fn(void *extra, size_t size);
+static void *memscope_malloc_fn(void *extra, size_t size);
 
-static void *memory_set_realloc_fn(void *extra, void *ptr, size_t size);
+static void *memscope_realloc_fn(void *extra, void *ptr, size_t size);
 
-static void memory_set_free_fn(void *extra, void *ptr);
+static void memscope_free_fn(void *extra, void *ptr);
 
-void memory_set_init(memory_set_t *m) {
-    memset(m, 0, sizeof(memory_set_t));
+void memscope_init(memscope_t *m) {
+    memset(m, 0, sizeof(memscope_t));
 
     slice_init((slice_any_t *) &m->ptrs, sizeof(void *), &alloc_std);
 
     m->alloc = (alloc_t) {
-            .calloc_fn = &memory_set_calloc_fn,
-            .malloc_fn = &memory_set_malloc_fn,
-            .realloc_fn = &memory_set_realloc_fn,
-            .free_fn = &memory_set_free_fn,
+            .calloc_fn = &memscope_calloc_fn,
+            .malloc_fn = &memscope_malloc_fn,
+            .realloc_fn = &memscope_realloc_fn,
+            .free_fn = &memscope_free_fn,
 
             .extra = m
     };
 }
 
-static void memory_set_append(memory_set_t *m, void *ptr) {
+static void memscope_append(memscope_t *m, void *ptr) {
     slice_append((slice_any_t *) &m->ptrs, ptr);
 }
 
-static void *memory_set_calloc_fn(void *extra, size_t nmemb, size_t size) {
+static void *memscope_calloc_fn(void *extra, size_t nmemb, size_t size) {
     void *ptr = calloc(nmemb, size);
     if (!ptr) {
         panicf("out of memory");
     }
 
-    memory_set_t *m = extra;
+    memscope_t *m = extra;
 
-    memory_set_append(m, ptr);
+    memscope_append(m, ptr);
 
     return ptr;
 }
 
-static void *memory_set_malloc_fn(void *extra, size_t size) {
+static void *memscope_malloc_fn(void *extra, size_t size) {
     void *ptr = malloc(size);
     if (!ptr) {
         panicf("out of memory");
     }
 
-    memory_set_t *m = extra;
+    memscope_t *m = extra;
 
-    memory_set_append(m, ptr);
+    memscope_append(m, ptr);
 
     return ptr;
 }
 
-static void *memory_set_realloc_fn(void *extra, void *ptr, size_t size) {
+static void *memscope_realloc_fn(void *extra, void *ptr, size_t size) {
     void *new_ptr = realloc(ptr, size);
     if (!new_ptr) {
         panicf("out of memory");
     }
 
-    memory_set_t *m = extra;
+    memscope_t *m = extra;
 
     int to_update = -1;
     for (int i = 0; i < (int) m->ptrs.len; i++) {
@@ -84,10 +84,10 @@ static void *memory_set_realloc_fn(void *extra, void *ptr, size_t size) {
     return new_ptr;
 }
 
-static void memory_set_free_fn(void *extra, void *ptr) {
+static void memscope_free_fn(void *extra, void *ptr) {
     free(ptr);
 
-    memory_set_t *m = extra;
+    memscope_t *m = extra;
 
     int to_remove = -1;
     for (int i = 0; i < (int) m->ptrs.len; i++) {
@@ -106,7 +106,7 @@ static void memory_set_free_fn(void *extra, void *ptr) {
     }
 }
 
-void memory_set_free(memory_set_t *m) {
+void memscope_free(memscope_t *m) {
     for (int i = 0; i < (int) m->ptrs.len; i++) {
         free(m->ptrs.array[i]);
     }

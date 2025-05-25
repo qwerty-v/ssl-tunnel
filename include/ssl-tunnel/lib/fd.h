@@ -10,7 +10,7 @@ err_t fd_tun_open(const char *device_name, int *out_tun_fd);
 
 err_t fd_udp_open(int *out_fd);
 
-err_t fd_udp_server_open(int port, int *out_fd);
+err_t fd_udp_bind_local(int fd, int port);
 
 err_t fd_poll_create(int *out_poll_fd);
 

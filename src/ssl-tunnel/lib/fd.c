@@ -42,13 +42,7 @@ err_t fd_udp_open(int *out_fd) {
     return ENULL;
 }
 
-err_t fd_udp_server_open(int port, int *out_fd) {
-    int fd;
-    err_t err = fd_udp_open(&fd);
-    if (!ERROR_OK(err)) {
-        return err;
-    }
-
+err_t fd_udp_bind_local(int fd, int port) {
     struct sockaddr_in local;
     local.sin_family = AF_INET;
     local.sin_port = htons(port);
@@ -58,7 +52,6 @@ err_t fd_udp_server_open(int port, int *out_fd) {
         return err_errno();
     }
 
-    *out_fd = fd;
     return ENULL;
 }
 

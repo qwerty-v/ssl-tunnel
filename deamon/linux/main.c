@@ -1,5 +1,7 @@
 #include <ssl-tunnel/backend/config.h>
 #include <ssl-tunnel/backend/tunnel.h>
+
+#include <ssl-tunnel/lib/memscope.h>
 #include <ssl-tunnel/lib/fd.h>
 
 #include <stdlib.h> // getenv
@@ -30,7 +32,10 @@ void signal_init() {
 }
 
 typedef struct {
+    memscope_t m;
+
     config_t cfg;
+
     int tun_fd;
     int socket_fd;
 } main_t;
@@ -38,8 +43,23 @@ typedef struct {
 void main_init(main_t *m) {
     memset(m, 0, sizeof(main_t));
 
+    memscope_init(&m->m);
+
+    config_init(&m->cfg, &m->m.alloc);
+
     m->tun_fd = -1;
     m->socket_fd = -1;
+}
+
+void main_free(main_t *m) {
+    if (m->tun_fd >= 0) {
+        close(m->tun_fd);
+    }
+    if (m->socket_fd >= 0) {
+        close(m->socket_fd);
+    }
+
+    memscope_free(&m->m);
 }
 
 int main(int argc, char *argv[]) {
@@ -64,8 +84,14 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    if (!ERROR_OK(err = fd_udp_server_open(m.cfg.interface.listen_port.v, &m.socket_fd))) {
+    if (!ERROR_OK(err = fd_udp_open(&m.socket_fd))) {
         goto cleanup;
+    }
+
+    if (optional_is_some(m.cfg.interface.listen_port)) {
+        if (!ERROR_OK(err = fd_udp_bind_local(optional_unwrap(m.cfg.interface.listen_port), m.socket_fd))) {
+            goto cleanup;
+        }
     }
 
     if (!ERROR_OK(err = fd_set_nonblock(m.socket_fd))) {
@@ -79,12 +105,7 @@ int main(int argc, char *argv[]) {
     }
 
 cleanup:
-    if (m.tun_fd >= 0) {
-        close(m.tun_fd);
-    }
-    if (m.socket_fd >= 0) {
-        close(m.socket_fd);
-    }
+    main_free(&m);
 
     if (!ERROR_OK(err)) {
         printf("Error: %s\n", err.msg);
