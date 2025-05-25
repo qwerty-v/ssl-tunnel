@@ -18,11 +18,11 @@ static volatile atomic_bool signal_flag;
 
 static void signal_handler(int unused) {
     (void) unused;
-    atomic_store(&signal_flag, true);
+    atomic_store(&signal_flag, false);
 }
 
 void signal_init() {
-    atomic_init(&signal_flag, false);
+    atomic_init(&signal_flag, true);
 
     signal(SIGHUP, signal_handler);
     signal(SIGINT, signal_handler);
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (optional_is_some(m.cfg.interface.listen_port)) {
-        if (!ERROR_OK(err = fd_udp_bind_local(optional_unwrap(m.cfg.interface.listen_port), m.socket_fd))) {
+        if (!ERROR_OK(err = fd_udp_bind_local(m.socket_fd, optional_unwrap(m.cfg.interface.listen_port)))) {
             goto cleanup;
         }
     }

@@ -8,6 +8,8 @@ void config_init(config_t *cfg, const alloc_t *alloc) {
     memset(cfg, 0, sizeof(config_t));
 
     cfg->alloc = alloc;
+
+    slice_init((slice_any_t *) &cfg->peers, sizeof(config_peer_t), alloc);
 }
 
 err_t config_read(const char *path, config_t *out_cfg) {

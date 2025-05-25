@@ -50,23 +50,6 @@ typedef struct {
     packet_queue_t send_q;
 } tunnel_t;
 
-//static err_t _server_ifconfig_device_up(const config_t *cfg) {
-//    char *fmt = "ifconfig %s 10.8.0.1 mtu %d netmask 255.255.255.0 up";
-//
-//    char *result_cmd = malloc(snprintf(0, 0, fmt, cfg->device_name, cfg->device_mtu) + 1);
-//    sprintf(result_cmd, fmt, cfg->device_name, cfg->device_mtu);
-//
-//    printf("%s\n", result_cmd);
-//    int status = system(result_cmd);
-//    free(result_cmd);
-//
-//    if (status != 0) {
-//        return ERR_SERVER_IFCONFIG_FAILED;
-//    }
-//
-//    return ENULL;
-//}
-
 static void lookup_route(const uint8_t *packet, size_t packet_len, const trie_t *t, peer_t **out_peer,
                          bool *out_ok) {
     if (packet_len < PROTO_IP_MIN_HEADER_LEN) {

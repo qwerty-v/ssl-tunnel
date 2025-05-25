@@ -18,7 +18,11 @@ RUN ./bin/unit_test_memory
 FROM alpine:3.19
 WORKDIR /app
 
-RUN apk add --update bash iptables libc6-compat
+RUN apk add --no-cache \
+    bash \
+    iproute2 \
+    iptables \
+    libc6-compat
 
 COPY --from=builder /app/bin/ssl-tunnel ./ssl-tunnel
 COPY ./scripts/docker_entrypoint.sh .
