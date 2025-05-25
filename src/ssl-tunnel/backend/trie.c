@@ -19,5 +19,5 @@ void trie_match(const trie_t *t, uint32_t lookup_ip, void **out_v, bool *ok) {
     (void) lookup_ip;
 
     *ok = true;
-    *out_v = &t->arr.array[0];
+    *out_v = t->arr.array[0];
 }

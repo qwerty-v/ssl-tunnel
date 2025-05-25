@@ -105,6 +105,8 @@ static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *
         if (!p.peer->is_remote_addr_known) {
             p.peer->remote_addr = addr;
             p.peer->remote_addr_len = addr_len;
+
+            p.peer->is_remote_addr_known = true;
         }
 
         deque_push_back((deque_any_t *) recv_q, &p);

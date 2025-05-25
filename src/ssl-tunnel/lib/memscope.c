@@ -31,7 +31,7 @@ void memscope_init(memscope_t *m) {
 }
 
 static void memscope_append(memscope_t *m, void *ptr) {
-    slice_append((slice_any_t *) &m->ptrs, ptr);
+    slice_append((slice_any_t *) &m->ptrs, &ptr);
 }
 
 static void *memscope_calloc_fn(void *extra, size_t nmemb, size_t size) {
@@ -90,7 +90,7 @@ static void memscope_free_fn(void *extra, void *ptr) {
     memscope_t *m = extra;
 
     int to_remove = -1;
-    for (int i = 0; i < (int) m->ptrs.len; i++) {
+    for (size_t i = 0; i < m->ptrs.len; i++) {
         if (m->ptrs.array[i] == ptr) {
             to_remove = i;
             break;

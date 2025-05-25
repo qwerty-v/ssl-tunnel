@@ -4,6 +4,9 @@
 
 #include <ssl-tunnel/backend/config.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 void config_init(config_t *cfg, const alloc_t *alloc) {
     memset(cfg, 0, sizeof(config_t));
 

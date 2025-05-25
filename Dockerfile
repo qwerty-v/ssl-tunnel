@@ -18,7 +18,7 @@ RUN ./bin/unit_test_memory
 FROM alpine:3.19
 WORKDIR /app
 
-RUN apk add --no-cache \
+RUN apk add --update --no-cache \
     bash \
     iproute2 \
     iptables \
