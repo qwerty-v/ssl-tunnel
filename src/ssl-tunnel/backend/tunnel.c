@@ -124,8 +124,9 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
         }
 
         const proto_transport_t *transport_packet = (const proto_transport_t *) p.packet_bytes;
+        int len = p.packet_len - PROTO_TRANSPORT_HEADER_LEN;
 
-        ssize_t n = write(tun_fd, transport_packet->data, p.packet_len - PROTO_TRANSPORT_HEADER_LEN);
+        ssize_t n = write(tun_fd, transport_packet->data, len);
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -133,7 +134,7 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
 
             panicf("error calling write (errno %d)", errno);
         }
-        if ((size_t) n != p.packet_len) {
+        if ((size_t) n != len) {
             panicf("unable to write whole buffer into device");
         }
 
