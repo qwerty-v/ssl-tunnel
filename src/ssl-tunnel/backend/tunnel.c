@@ -202,7 +202,7 @@ static void io_udp_write(int socket_fd, packet_queue_t *send_q, uint32_t self_in
 
             panicf("error calling sendto (errno %d)", errno);
         }
-        if ((size_t) n != p.packet_len) {
+        if ((size_t) n != len) {
             panicf("bytes sent and total buffered bytes did not match");
         }
 
