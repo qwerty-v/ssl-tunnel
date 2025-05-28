@@ -66,6 +66,10 @@ static void *memscope_realloc_fn(void *extra, void *ptr, size_t size) {
         panicf("out of memory");
     }
 
+    if (ptr == new_ptr) {
+        return new_ptr;
+    }
+
     memscope_t *m = extra;
 
     int to_update = -1;
@@ -85,6 +89,10 @@ static void *memscope_realloc_fn(void *extra, void *ptr, size_t size) {
 }
 
 static void memscope_free_fn(void *extra, void *ptr) {
+    if (ptr == NULL) {
+        return;
+    }
+
     free(ptr);
 
     memscope_t *m = extra;

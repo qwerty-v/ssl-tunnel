@@ -123,7 +123,7 @@ void test_custom_realloc() {
 
     prev_counter = counter.alloc_counter;
     int *new_arr = (int*)alloc_realloc(&custom_alloc, arr, 10 * sizeof(int));
-    assert(arr != NULL);
+    assert(new_arr != NULL);
     assert(counter.alloc_counter == prev_counter);
 
     prev_counter = counter.alloc_counter;

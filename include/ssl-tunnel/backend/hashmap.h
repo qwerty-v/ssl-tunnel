@@ -22,6 +22,6 @@ void hashmap_init(hashmap_t *h, const alloc_t *alloc);
 
 err_t hashmap_resize(hashmap_t *h, size_t new_cap);
 
-void hashmap_insert(hashmap_t *h, uint32_t key, void *value);
+void hashmap_insert(hashmap_t *h, uint32_t key, void **value);
 
 void hashmap_get(const hashmap_t *h, uint32_t key, void **out_value, bool *out_ok);

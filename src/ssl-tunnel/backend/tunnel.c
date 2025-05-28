@@ -124,7 +124,11 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
         }
 
         const proto_transport_t *transport_packet = (const proto_transport_t *) p.packet_bytes;
-        int len = p.packet_len - PROTO_TRANSPORT_HEADER_LEN;
+
+        if (p.packet_len <= PROTO_TRANSPORT_HEADER_LEN) {
+            panicf("packet len too small");
+        }
+        size_t len = p.packet_len - PROTO_TRANSPORT_HEADER_LEN;
 
         ssize_t n = write(tun_fd, transport_packet->data, len);
         if (n < 0) {
@@ -281,9 +285,9 @@ err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, const vo
     for (int i = 0; i < (int) t.peers.len; i++) {
         peer_t *p = &t.peers.array[i];
 
-        hashmap_insert(&t.index_lookup, p->index, p);
+        hashmap_insert(&t.index_lookup, p->index, (void **) &p);
 
-        trie_insert(&t.route_lookup, p->cfg_entry->addr, p->cfg_entry->addr_prefix, p);
+        trie_insert(&t.route_lookup, p->cfg_entry->addr, p->cfg_entry->addr_prefix, (void **) &p);
     }
 
     err_t err;

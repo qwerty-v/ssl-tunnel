@@ -14,6 +14,6 @@ typedef struct {
 
 void trie_init(trie_t *t, const alloc_t *alloc);
 
-void trie_insert(trie_t *t, uint32_t addr, uint8_t addr_prefix, void *v);
+void trie_insert(trie_t *t, uint32_t addr, uint8_t addr_prefix, void **v);
 
 void trie_match(const trie_t *t, uint32_t lookup_ip, void **out_v, bool *ok);
