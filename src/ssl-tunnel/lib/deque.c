@@ -25,8 +25,8 @@ err_t deque_resize(deque_any_t *d, size_t new_cap) {
 
     uint8_t *new_arr = alloc_malloc(d->alloc, new_cap * d->element_size);
 
-    for (int i = 0; i < (int)d->len; i++) {
-        int old_ind = (d->front + i) % d->cap;
+    for (size_t i = 0; i < d->len; i++) {
+        size_t old_ind = (d->front + i) % d->cap;
 
         memcpy(new_arr + i * d->element_size, d->array + old_ind * d->element_size, d->element_size);
     }
@@ -37,7 +37,11 @@ err_t deque_resize(deque_any_t *d, size_t new_cap) {
 
     d->array = new_arr;
     d->front = 0;
-    d->back = d->len - 1;
+    d->back = 0;
+    if (d->len != 0) {
+        assert(d->len > 0);
+        d->back = d->len - 1;
+    }
     d->cap = new_cap;
 
     return ENULL;
@@ -45,7 +49,7 @@ err_t deque_resize(deque_any_t *d, size_t new_cap) {
 
 void deque_push_back(deque_any_t *d, const void *element) {
     if (d->len == d->cap) {
-        int new_cap = 2 * d->cap;
+        size_t new_cap = 2 * d->cap;
         if (new_cap == 0) {
             new_cap = 1;
         }
@@ -56,8 +60,13 @@ void deque_push_back(deque_any_t *d, const void *element) {
         }
     }
 
-    d->back++;
-    d->back %= d->cap;
+    if (d->len != 0) {
+        d->back++;
+        d->back %= d->cap;
+    } else {
+        assert(d->front == d->back);
+        assert(0 <= d->front && d->front < d->cap);
+    }
 
     void *dst = (uint8_t *) d->array + d->back * d->element_size;
     memcpy(dst, element, d->element_size);
@@ -66,7 +75,7 @@ void deque_push_back(deque_any_t *d, const void *element) {
 
 void deque_push_front(deque_any_t *d, const void *element) {
     if (d->len == d->cap) {
-        int new_cap = 2 * d->cap;
+        size_t new_cap = 2 * d->cap;
         if (new_cap == 0) {
             new_cap = 1;
         }
@@ -77,9 +86,12 @@ void deque_push_front(deque_any_t *d, const void *element) {
         }
     }
 
-    d->front--;
-    if (d->front < 0) {
-        d->front = d->cap - 1;
+    if (d->len != 0) {
+        // d->front--;
+        d->front = (d->front + d->cap - 1) % d->cap;
+    } else {
+        assert(d->front == d->back);
+        assert(0 <= d->front && d->front < d->cap);
     }
 
     void *dst = (uint8_t *) d->array + d->front * d->element_size;
@@ -103,9 +115,13 @@ err_t deque_pop_back(deque_any_t *d) {
     }
 
     d->len--;
-    d->back--;
-    if (d->back < 0) {
-        d->back = d->cap - 1;
+
+    if (d->len != 0) {
+        // d->back--;
+        d->back = (d->back + d->cap - 1) % d->cap;
+    } else {
+        assert(d->front == d->back);
+        assert(0 <= d->front && d->front < d->cap);
     }
 
     return ENULL;
@@ -127,8 +143,14 @@ err_t deque_pop_front(deque_any_t *d) {
     }
 
     d->len--;
-    d->front++;
-    d->front %= d->cap;
+
+    if (d->len != 0) {
+        d->front++;
+        d->front %= d->cap;
+    } else {
+        assert(d->front == d->back);
+        assert(0 <= d->front && d->front < d->cap);
+    }
 
     return ENULL;
 }

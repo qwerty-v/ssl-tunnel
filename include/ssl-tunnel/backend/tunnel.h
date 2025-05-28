@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ssl-tunnel/backend/config.h>
+
 #include <ssl-tunnel/lib/err.h>
 
 #include <stdatomic.h> // atomic_bool

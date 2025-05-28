@@ -33,9 +33,6 @@ err_t slice_resize(slice_any_t *s, size_t new_cap) {
     } else {
         s->array = alloc_realloc(s->alloc, s->array, new_cap * s->element_size);
     }
-    if (!s->array) {
-        panicf("out of memory");
-    }
 
     s->cap = new_cap;
 
@@ -83,6 +80,6 @@ err_t slice_ith(const slice_any_t *s, int i, void *out) {
         return ERR_SLICE_INDEX_OUT_OF_BOUNDS;
     }
 
-    memcpy(out, (uint8_t *) s->array + i * s->element_size, sizeof(s->element_size));
+    memcpy(out, (uint8_t *) s->array + i * s->element_size, s->element_size);
     return ENULL;
 }
