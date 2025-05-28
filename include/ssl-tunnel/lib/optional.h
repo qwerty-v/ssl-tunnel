@@ -14,9 +14,6 @@ struct {                     \
     T v[n];                  \
 }
 
-#define optional_some(vv) { .present = true, .v = vv }
-#define optional_none() { .present = false }
-
 #define optional_is_some(p) p.present
 #define optional_is_none(p) !p.present
 

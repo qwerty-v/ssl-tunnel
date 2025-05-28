@@ -12,8 +12,7 @@ FROM builder AS test
 
 RUN make test
 
-RUN ./bin/unit_test_arrays
-RUN ./bin/unit_test_memory
+CMD ./bin/unit_alloc; ./bin/unit_slice; ./bin/unit_memscope
 
 FROM alpine:3.19
 WORKDIR /app

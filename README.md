@@ -18,4 +18,5 @@ no-ssl implementation
     Segmentation fault (core dumped)
 
 ## Test
-    $ docker build -t ssl-tunnel:latest . --target=test
+    $ docker build -t ssl-tunnel:test-latest . --target=test
+    $ docker run ssl-tunnel:test-latest
