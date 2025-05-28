@@ -11,8 +11,8 @@ struct {                    \
     size_t len;             \
     size_t element_size;    \
     const alloc_t *alloc;   \
-    int front;              \
-    int back;               \
+    size_t front;           \
+    size_t back;            \
     T *array;               \
 }
 

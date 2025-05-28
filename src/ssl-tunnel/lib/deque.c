@@ -2,6 +2,7 @@
 #include <ssl-tunnel/lib/alloc.h>
 
 #include <string.h>
+#include <assert.h>
 
 const err_t ERR_DEQUE_CAP_TOO_LOW = {
         .msg = "new deque capacity is too low"
