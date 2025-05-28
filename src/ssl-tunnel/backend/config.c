@@ -24,14 +24,13 @@ err_t config_read(const char *path, config_t *out_cfg) {
     out_cfg->interface.listen_port.v = 1026;
     out_cfg->interface.listen_port.present = true;
 
-    config_peer_t *peer = alloc_calloc(out_cfg->alloc, 1, sizeof(config_peer_t));
+    config_peer_t peer;
+    memset(&peer, 0, sizeof(config_peer_t));
 
-    peer->index = 2736684749;
-    peer->remote.present = false;
-    peer->addr = 168296450; // 10.8.0.2
-    peer->preshared_key.present = false;
+    peer.index = 2736684749;
+    peer.addr = 168296450; // 10.8.0.2
 
-    slice_append((slice_any_t *) &out_cfg->peers, peer);
+    slice_append((slice_any_t *) &out_cfg->peers, &peer);
 
     return ENULL;
 }

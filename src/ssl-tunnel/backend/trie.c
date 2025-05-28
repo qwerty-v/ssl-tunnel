@@ -1,6 +1,8 @@
 #include <ssl-tunnel/backend/trie.h>
 
 void trie_init(trie_t *t, const alloc_t *alloc) {
+    memset(t, 0, sizeof(trie_t));
+
     t->alloc = alloc;
 
     slice_init((slice_any_t *) &t->arr, sizeof(void *), alloc);

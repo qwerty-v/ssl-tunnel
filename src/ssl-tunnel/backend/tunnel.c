@@ -81,6 +81,7 @@ static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *
     // socket -> recv_q
     while (1) {
         queued_packet_t p;
+        memset(&p, 0, sizeof(queued_packet_t));
 
         struct sockaddr addr;
         socklen_t addr_len;
@@ -117,6 +118,7 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
     // recv_q -> tun
     while (recv_q->len > 0) {
         queued_packet_t p;
+        memset(&p, 0, sizeof(queued_packet_t));
 
         err_t err = deque_front((deque_any_t *) recv_q, &p);
         if (!ERROR_OK(err)) {
@@ -152,6 +154,7 @@ static void io_tun_read(int tun_fd, packet_queue_t *send_q, const trie_t *route_
     // tun -> send_q
     while (1) {
         queued_packet_t p;
+        memset(&p, 0, sizeof(queued_packet_t));
 
         ssize_t n = read(tun_fd, p.packet_bytes, PROTO_MAX_MTU);
         if (n < 0) {
@@ -178,6 +181,7 @@ static void io_udp_write(int socket_fd, packet_queue_t *send_q, uint32_t self_in
     // send_q -> udp
     while (send_q->len > 0) {
         queued_packet_t p;
+        memset(&p, 0, sizeof(queued_packet_t));
 
         err_t err = deque_front((deque_any_t *) send_q, &p);
         if (!ERROR_OK(err)) {
