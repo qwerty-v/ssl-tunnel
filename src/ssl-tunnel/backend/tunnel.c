@@ -111,7 +111,7 @@ static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *
         }
         p.packet_len = n;
 
-        assert(addr.sa_family == AF_INET);
+        assert(addr.sin_family == AF_INET);
         printf("%d\tio_udp_read():\tfrom: %s\trecv_q.len: %lu\tbytes: %lu\n", (int)time(NULL), inet_ntoa(addr.sin_addr), recv_q->len, p.packet_len);
         print_buffer(p.packet_bytes, p.packet_len);
 
