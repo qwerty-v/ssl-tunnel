@@ -19,4 +19,4 @@ no-ssl implementation
 
 ## Test
     $ docker build -t ssl-tunnel:test-latest . --target=test
-    $ docker --rm run ssl-tunnel:test-latest
+    $ docker run --rm ssl-tunnel:test-latest

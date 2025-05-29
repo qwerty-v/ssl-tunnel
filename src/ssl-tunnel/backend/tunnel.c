@@ -18,8 +18,6 @@
 #include <netinet/ip.h>
 #include <netinet/in.h> // struct sockaddr, socklen_t
 #include <arpa/inet.h> // ntohl
-#include <assert.h>
-#include <time.h>
 
 typedef struct {
     const config_peer_t *cfg_entry;
@@ -51,16 +49,6 @@ typedef struct {
     packet_queue_t recv_q;
     packet_queue_t send_q;
 } tunnel_t;
-
-static void print_buffer(const uint8_t *arr, size_t arr_len) {
-    for (size_t i = 0; i < arr_len; i++) {
-        if (i != 0 && i % 8 == 0) {
-            printf("\n");
-        }
-        printf("%02x ", arr[i]);
-    }
-    printf("\n");
-}
 
 static void lookup_route(const uint8_t *packet, size_t packet_len, const trie_t *t, peer_t **out_peer,
                          bool *out_ok) {
@@ -97,9 +85,8 @@ static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(struct sockaddr_in));
-        addr.sin_family = AF_INET;
 
-        socklen_t addr_len;
+        socklen_t addr_len = sizeof(struct sockaddr_in);
 
         ssize_t n = recvfrom(socket_fd, p.packet_bytes, PROTO_MAX_MTU, 0, (struct sockaddr *) &addr, &addr_len);
         if (n < 0) {
@@ -110,10 +97,6 @@ static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *
             panicf("error calling recvfrom (errno %d)", errno);
         }
         p.packet_len = n;
-
-        assert(addr.sin_family == AF_INET);
-        printf("%d\tio_udp_read():\tfrom: %s\trecv_q.len: %lu\tbytes: %lu\n", (int)time(NULL), inet_ntoa(addr.sin_addr), recv_q->len, p.packet_len);
-        print_buffer(p.packet_bytes, p.packet_len);
 
         bool ok;
         lookup_index(p.packet_bytes, p.packet_len, index_lookup, &p.peer, &ok);
@@ -151,10 +134,6 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
         }
         size_t len = p.packet_len - PROTO_TRANSPORT_HEADER_LEN;
 
-        assert(p.peer->remote_addr.sin_family == AF_INET);
-        printf("%d\tio_tun_write():\tp.peer.remote_addr: %s\trecv_q.len: %lu\tbytes: %lu\n", (int)time(NULL), inet_ntoa(p.peer->remote_addr.sin_addr), recv_q->len, len);
-        print_buffer(transport_packet->data, len);
-
         ssize_t n = write(tun_fd, transport_packet->data, len);
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -188,9 +167,6 @@ static void io_tun_read(int tun_fd, packet_queue_t *send_q, const trie_t *route_
             panicf("error calling read (errno %d)", errno);
         }
         p.packet_len = n;
-
-        printf("%d\tio_tun_read():\tsend_q.len: %lu\tbytes: %lu\n", (int) time(NULL), send_q->len, p.packet_len);
-        print_buffer(p.packet_bytes, p.packet_len);
 
         bool ok;
         lookup_route(p.packet_bytes, p.packet_len, route_lookup, &p.peer, &ok);
@@ -227,10 +203,6 @@ static void io_udp_write(int socket_fd, packet_queue_t *send_q, uint32_t self_in
         if (!ERROR_OK(err)) {
             panicf("error creating new packet: %s", err.msg);
         }
-
-        assert(p.peer->remote_addr.sin_family == AF_INET);
-        printf("%d\tio_udp_write():\tp.peer.remote_addr: %s\tsend_q.len: %lu\tbytes: %lu\n", (int) time(NULL), inet_ntoa(p.peer->remote_addr.sin_addr), send_q->len, len);
-        print_buffer((uint8_t *) &packet, len);
 
         ssize_t n = sendto(socket_fd, &packet, len, 0, (struct sockaddr *) &p.peer->remote_addr, p.peer->remote_addr_len);
         if (n < 0) {
