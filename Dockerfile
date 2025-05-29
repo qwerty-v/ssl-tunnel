@@ -12,7 +12,7 @@ FROM builder AS test
 
 RUN make test
 
-CMD ./bin/unit_alloc; ./bin/unit_slice; ./bin/unit_memscope
+CMD ./bin/unit_alloc; ./bin/unit_slice; ./bin/unit_memscope; ./bin/unit_deque
 
 FROM alpine:3.19
 WORKDIR /app

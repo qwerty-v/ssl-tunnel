@@ -35,6 +35,13 @@ test: clean
 		src/ssl-tunnel/lib/slice.c \
 		src/ssl-tunnel/lib/alloc.c \
 		src/ssl-tunnel/lib/err.c
+	$(CC) $(CFLAGS) -o bin/unit_deque \
+		tests/unit/deque.c \
+		src/ssl-tunnel/lib/deque.c \
+		src/ssl-tunnel/lib/memscope.c \
+		src/ssl-tunnel/lib/slice.c \
+		src/ssl-tunnel/lib/alloc.c \
+		src/ssl-tunnel/lib/err.c
 	$(CC) $(CFLAGS) -o bin/e2e_client \
 		tests/e2e/client.c
 

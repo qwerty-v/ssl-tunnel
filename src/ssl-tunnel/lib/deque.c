@@ -66,7 +66,7 @@ void deque_push_back(deque_any_t *d, const void *element) {
         d->back %= d->cap;
     } else {
         assert(d->front == d->back);
-        assert(0 <= d->front && d->front < d->cap);
+        assert(d->front < d->cap);
     }
 
     void *dst = (uint8_t *) d->array + d->back * d->element_size;
@@ -92,7 +92,7 @@ void deque_push_front(deque_any_t *d, const void *element) {
         d->front = (d->front + d->cap - 1) % d->cap;
     } else {
         assert(d->front == d->back);
-        assert(0 <= d->front && d->front < d->cap);
+        assert(d->front < d->cap);
     }
 
     void *dst = (uint8_t *) d->array + d->front * d->element_size;
@@ -122,7 +122,7 @@ err_t deque_pop_back(deque_any_t *d) {
         d->back = (d->back + d->cap - 1) % d->cap;
     } else {
         assert(d->front == d->back);
-        assert(0 <= d->front && d->front < d->cap);
+        assert(d->front < d->cap);
     }
 
     return ENULL;
@@ -150,7 +150,7 @@ err_t deque_pop_front(deque_any_t *d) {
         d->front %= d->cap;
     } else {
         assert(d->front == d->back);
-        assert(0 <= d->front && d->front < d->cap);
+        assert(d->front < d->cap);
     }
 
     return ENULL;
