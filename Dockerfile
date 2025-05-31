@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 as builder
+FROM ubuntu:24.04 AS builder
 WORKDIR /app
 
 RUN apt-get update && \
@@ -8,20 +8,24 @@ COPY . .
 
 RUN make
 
-FROM builder as test
+FROM builder AS test
 
 RUN make test
 
-RUN ./bin/unit_test_arrays
-RUN ./bin/unit_test_memory
+CMD ./bin/unit_alloc; ./bin/unit_slice; ./bin/unit_memscope; ./bin/unit_deque
 
 FROM alpine:3.19
 WORKDIR /app
 
-RUN apk add --update bash iptables libc6-compat
+RUN apk add --update --no-cache \
+    bash \
+    iproute2 \
+    iptables \
+    libc6-compat
 
-COPY --from=builder /app/bin/ssl-tunnel .
+COPY --from=builder /app/bin/ssl-tunnel ./ssl-tunnel
 COPY ./scripts/docker_entrypoint.sh .
-COPY ./config.yaml .
+COPY ./preup.sh .
+COPY ./config.yaml /etc/ssl-tunnel/cfg.yaml
 
 CMD ["./docker_entrypoint.sh"]

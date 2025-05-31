@@ -2,4 +2,6 @@
 .DS_Store
 
 bin
+configs
 config.yaml
+preup.sh
