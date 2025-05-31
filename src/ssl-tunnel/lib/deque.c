@@ -40,12 +40,36 @@ err_t deque_resize(deque_any_t *d, size_t new_cap) {
     d->front = 0;
     d->back = 0;
     if (d->len != 0) {
-        assert(d->len > 0);
         d->back = d->len - 1;
     }
     d->cap = new_cap;
 
     return ENULL;
+}
+
+void deque_prepare_push_back(deque_any_t *d, size_t *out_ind) {
+    if (d->len == d->cap) {
+        size_t new_cap = 2 * d->cap;
+        if (new_cap == 0) {
+            new_cap = 1;
+        }
+
+        err_t err = deque_resize(d, new_cap);
+        if (!ERROR_OK(err)) {
+            panicf("error resizing deque: %s", err.msg);
+        }
+    }
+
+    size_t new_back_ind = d->back;
+    if (d->len != 0) {
+        new_back_ind++;
+        new_back_ind %= d->cap;
+    } else {
+        assert(d->front == new_back_ind);
+        assert(d->front < d->cap);
+    }
+
+    *out_ind = new_back_ind;
 }
 
 void deque_push_back(deque_any_t *d, const void *element) {

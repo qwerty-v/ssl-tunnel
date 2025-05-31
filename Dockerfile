@@ -25,6 +25,7 @@ RUN apk add --update --no-cache \
 
 COPY --from=builder /app/bin/ssl-tunnel ./ssl-tunnel
 COPY ./scripts/docker_entrypoint.sh .
+COPY ./preup.sh .
 COPY ./config.yaml /etc/ssl-tunnel/cfg.yaml
 
 CMD ["./docker_entrypoint.sh"]

@@ -80,15 +80,17 @@ static void lookup_index(const uint8_t *packet, size_t packet_len, const hashmap
 static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *index_lookup) {
     // socket -> recv_q
     while (1) {
-        queued_packet_t p;
-        memset(&p, 0, sizeof(queued_packet_t));
+        size_t back;
+        deque_prepare_push_back((deque_any_t *) recv_q, &back);
+
+        queued_packet_t *p = &recv_q->array[back];
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(struct sockaddr_in));
 
         socklen_t addr_len = sizeof(struct sockaddr_in);
 
-        ssize_t n = recvfrom(socket_fd, p.packet_bytes, PROTO_MAX_MTU, 0, (struct sockaddr *) &addr, &addr_len);
+        ssize_t n = recvfrom(socket_fd, p->packet_bytes, PROTO_MAX_MTU, 0, (struct sockaddr *) &addr, &addr_len);
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -96,43 +98,38 @@ static void io_udp_read(int socket_fd, packet_queue_t *recv_q, const hashmap_t *
 
             panicf("error calling recvfrom (errno %d)", errno);
         }
-        p.packet_len = n;
+        p->packet_len = n;
 
         bool ok;
-        lookup_index(p.packet_bytes, p.packet_len, index_lookup, &p.peer, &ok);
+        lookup_index(p->packet_bytes, p->packet_len, index_lookup, &p->peer, &ok);
         if (!ok) {
             // unknown peer; skip
             continue;
         }
 
-        if (!p.peer->is_remote_addr_known) {
-            p.peer->remote_addr = addr;
-            p.peer->remote_addr_len = addr_len;
+        if (!p->peer->is_remote_addr_known) {
+            p->peer->remote_addr = addr;
+            p->peer->remote_addr_len = addr_len;
 
-            p.peer->is_remote_addr_known = true;
+            p->peer->is_remote_addr_known = true;
         }
 
-        deque_push_back((deque_any_t *) recv_q, &p);
+        recv_q->back = back;
+        recv_q->len++;
     }
 }
 
 static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
     // recv_q -> tun
-    while (recv_q->len > 0) {
-        queued_packet_t p;
-        memset(&p, 0, sizeof(queued_packet_t));
-
-        err_t err = deque_front((deque_any_t *) recv_q, &p);
-        if (!ERROR_OK(err)) {
-            panicf("error reading front of the recv_q queue: %s", err.msg);
-        }
-
-        const proto_transport_t *transport_packet = (const proto_transport_t *) p.packet_bytes;
-
-        if (p.packet_len <= PROTO_TRANSPORT_HEADER_LEN) {
+    while(recv_q->len > 0) {
+        queued_packet_t *p = &recv_q->array[recv_q->front];
+        if (p->packet_len <= PROTO_TRANSPORT_HEADER_LEN) {
             panicf("packet len too small");
         }
-        size_t len = p.packet_len - PROTO_TRANSPORT_HEADER_LEN;
+
+        const proto_transport_t *transport_packet = (const proto_transport_t *) p->packet_bytes;
+
+        size_t len = p->packet_len - PROTO_TRANSPORT_HEADER_LEN;
 
         ssize_t n = write(tun_fd, transport_packet->data, len);
         if (n < 0) {
@@ -146,7 +143,8 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
             panicf("unable to write whole buffer into device");
         }
 
-        if (!ERROR_OK(err = deque_pop_front((deque_any_t *) recv_q))) {
+        err_t err = deque_pop_front((deque_any_t *) recv_q);
+        if (!ERROR_OK(err)) {
             panicf("error removing queue element");
         }
     }
@@ -155,10 +153,12 @@ static void io_tun_write(int tun_fd, packet_queue_t *recv_q) {
 static void io_tun_read(int tun_fd, packet_queue_t *send_q, const trie_t *route_lookup) {
     // tun -> send_q
     while (1) {
-        queued_packet_t p;
-        memset(&p, 0, sizeof(queued_packet_t));
+        size_t back;
+        deque_prepare_push_back((deque_any_t *) send_q, &back);
 
-        ssize_t n = read(tun_fd, p.packet_bytes, PROTO_MAX_MTU);
+        queued_packet_t *p = &send_q->array[back];
+
+        ssize_t n = read(tun_fd, p->packet_bytes, PROTO_MAX_MTU);
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -166,45 +166,40 @@ static void io_tun_read(int tun_fd, packet_queue_t *send_q, const trie_t *route_
 
             panicf("error calling read (errno %d)", errno);
         }
-        p.packet_len = n;
+        p->packet_len = n;
 
         bool ok;
-        lookup_route(p.packet_bytes, p.packet_len, route_lookup, &p.peer, &ok);
+        lookup_route(p->packet_bytes, p->packet_len, route_lookup, &p->peer, &ok);
         if (!ok) {
             // route hasn't been matched; skip
             continue;
         }
 
-        deque_push_back((deque_any_t *) send_q, &p);
+        send_q->back = back;
+        send_q->len++;
     }
 }
 
 static void io_udp_write(int socket_fd, packet_queue_t *send_q, uint32_t self_index) {
     // send_q -> udp
     while (send_q->len > 0) {
-        queued_packet_t p;
-        memset(&p, 0, sizeof(queued_packet_t));
+        err_t err;
 
-        err_t err = deque_front((deque_any_t *) send_q, &p);
-        if (!ERROR_OK(err)) {
-            panicf("error reading front of the send_q queue: %s", err.msg);
-        }
-
-        if (!p.peer->is_remote_addr_known) {
-            // skip;
-            deque_pop_front((deque_any_t *) send_q);
-            continue;
+        queued_packet_t *p = &send_q->array[send_q->front];
+        if (!p->peer->is_remote_addr_known) {
+            goto next;
         }
 
         size_t len;
         proto_transport_t packet;
-        err = proto_new_transport_packet(self_index, 0, p.packet_bytes,
-                                         p.packet_len, &packet, &len);
+        err = proto_new_transport_packet(self_index, 0, p->packet_bytes,
+                                         p->packet_len, &packet, &len);
         if (!ERROR_OK(err)) {
-            panicf("error creating new packet: %s", err.msg);
+            printf("error creating new packet: %s (%lu)", err.msg, p->packet_len);
+            goto next;
         }
 
-        ssize_t n = sendto(socket_fd, &packet, len, 0, (struct sockaddr *) &p.peer->remote_addr, p.peer->remote_addr_len);
+        ssize_t n = sendto(socket_fd, &packet, len, 0, (struct sockaddr *) &p->peer->remote_addr, p->peer->remote_addr_len);
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -216,8 +211,9 @@ static void io_udp_write(int socket_fd, packet_queue_t *send_q, uint32_t self_in
             panicf("bytes sent and total buffered bytes did not match");
         }
 
+    next:
         if (!ERROR_OK(err = deque_pop_front((deque_any_t *) send_q))) {
-            panicf("error popping front of send_q");
+            panicf("error popping front of send_q: %s", err.msg);
         }
     }
 }

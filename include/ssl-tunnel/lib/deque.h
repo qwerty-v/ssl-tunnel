@@ -25,6 +25,8 @@ void deque_init(deque_any_t *d, size_t element_size, const alloc_t *a);
 
 err_t deque_resize(deque_any_t *d, size_t new_cap);
 
+void deque_prepare_push_back(deque_any_t *d, size_t *out_ind);
+
 void deque_push_back(deque_any_t *d, const void *element);
 
 void deque_push_front(deque_any_t *d, const void *element);
