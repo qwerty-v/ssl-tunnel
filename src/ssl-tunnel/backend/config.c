@@ -11,10 +11,6 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
-const err_t ERR_INVALID_ADDR = {
-        .msg = "invalid address"
-};
-
 static void trim_left(char **s) {
     while (**s && isspace((unsigned char)**s)) {
         (*s)++;
@@ -44,23 +40,21 @@ static char *alloc_strdup(const alloc_t *alloc, const char *src) {
     return dst;
 }
 
-static err_t parse_addr_prefix(const char *s, uint32_t *addr, uint8_t *prefix) {
+static void parse_addr_prefix(const char *s, uint32_t *addr, uint8_t *prefix) {
     // s = "10.8.0.2/24"
     char ip[32] = {0};
     int pfx = 0;
     if (sscanf(s, "%31[^/]/%d", ip, &pfx) != 2) {
-        return ERR_INVALID_ADDR;
+        panicf("invalid address");
     }
 
     *prefix = (uint8_t) pfx;
 
     struct in_addr ip_addr;
     if (!inet_aton(ip, &ip_addr)) {
-        return ERR_INVALID_ADDR;
+        panicf("invalid address");
     }
     *addr = ntohl(ip_addr.s_addr);
-
-    return ENULL;
 }
 
 static void parse_remote(const char *s, struct sockaddr_in *addr) {
@@ -173,12 +167,11 @@ err_t config_read(const char *path, config_t *out_cfg) {
                 continue;
             }
             if (strcmp(key, "addr") == 0) {
-                if (!ERROR_OK(parse_addr_prefix(val, &cur_peer.addr, &cur_peer.addr_prefix))) {
-                    panicf("invalid addr: %s", val);
-                }
+                parse_addr_prefix(val, &cur_peer.addr, &cur_peer.addr_prefix);
                 continue;
             }
             if (strcmp(key, "preshared_key") == 0) {
+                // fixme
                 size_t len = strlen(val);
                 if (len > 32) len = 32;
 
