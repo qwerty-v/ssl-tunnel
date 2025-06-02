@@ -43,7 +43,7 @@ err_t hashmap_resize(hashmap_t *h, size_t new_cap) {
     return ENULL;
 }
 
-void hashmap_insert(hashmap_t *h, uint32_t key, void **value) {
+void hashmap_insert(hashmap_t *h, uint32_t key, peer_t **value) {
     if (h->len == h->cap) {
         size_t new_cap = 2 * h->cap;
         if (new_cap == 0) {
@@ -79,7 +79,7 @@ void hashmap_insert(hashmap_t *h, uint32_t key, void **value) {
     h->len++;
 }
 
-void hashmap_get(const hashmap_t *h, uint32_t key, void **out_value, bool *out_ok) {
+void hashmap_get(const hashmap_t *h, uint32_t key, peer_t **out_value, bool *out_ok) {
     *out_ok = false;
 
     uint32_t hash;
@@ -90,6 +90,7 @@ void hashmap_get(const hashmap_t *h, uint32_t key, void **out_value, bool *out_o
         if (h->entries[idx].key == key) {
             *out_value = h->entries[idx].value;
             *out_ok = true;
+            return;
         }
 
         idx++;

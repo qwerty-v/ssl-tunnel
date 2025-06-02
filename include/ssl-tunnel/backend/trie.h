@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ssl-tunnel/backend/peer.h>
+
 #include <ssl-tunnel/lib/alloc.h>
 #include <ssl-tunnel/lib/err.h>
 #include <ssl-tunnel/lib/slice.h> // fixme
@@ -9,11 +11,11 @@
 
 typedef struct {
     const alloc_t *alloc;
-    slice_t(void *) arr;
+    slice_t(peer_t *) arr;
 } trie_t;
 
 void trie_init(trie_t *t, const alloc_t *alloc);
 
-void trie_insert(trie_t *t, uint32_t addr, uint8_t addr_prefix, void **v);
+void trie_insert(trie_t *t, uint32_t addr, uint8_t addr_prefix, peer_t **v);
 
-void trie_match(const trie_t *t, uint32_t lookup_ip, void **out_v, bool *ok);
+void trie_match(const trie_t *t, uint32_t lookup_ip, peer_t **out_v, bool *ok);

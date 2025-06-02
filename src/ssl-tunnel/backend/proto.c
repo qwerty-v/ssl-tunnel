@@ -14,12 +14,12 @@ err_t proto_new_transport_packet(uint32_t remote_index, uint64_t nonce, const ui
     out_packet->remote_index = remote_index;
     out_packet->nonce = nonce;
 
-    if (data_len > PROTO_MAX_DATA_SIZE) {
+    if (data_len > PROTO_TRANSPORT_MAX_DATA_LEN) {
         return ERR_DATA_TOO_LARGE;
     }
 
     memcpy(out_packet->data, data, data_len);
-    *out_len = PROTO_TRANSPORT_HEADER_LEN + data_len;
+    *out_len = PROTO_HEADER_TRANSPORT_LEN + data_len;
 
     return ENULL;
 }

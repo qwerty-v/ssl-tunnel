@@ -6,22 +6,34 @@
 
 #define PROTO_MAX_MTU 1500
 
-#define PROTO_IP_MIN_HEADER_LEN 20
-#define PROTO_UDP_HEADER_LEN 8
-#define PROTO_TRANSPORT_HEADER_LEN 16
-
-#define PROTO_MAX_DATA_SIZE (PROTO_MAX_MTU - PROTO_IP_MIN_HEADER_LEN - PROTO_UDP_HEADER_LEN - PROTO_TRANSPORT_HEADER_LEN)
-
-#define PROTO_PACKET_TYPE_TRANSPORT 3
+#define PROTO_HEADER_IP_MIN_LEN 20
+#define PROTO_HEADER_UDP_LEN 8
+#define PROTO_HEADER_TRANSPORT_LEN 16
 
 typedef struct {
     uint32_t packet_type;
+#define PROTO_PACKET_TYPE_TRANSPORT 3
     uint32_t remote_index;
     uint64_t nonce;
-    uint8_t data[PROTO_MAX_DATA_SIZE];
+#define PROTO_TRANSPORT_MAX_DATA_LEN (PROTO_MAX_MTU - PROTO_HEADER_IP_MIN_LEN - PROTO_HEADER_UDP_LEN - PROTO_HEADER_TRANSPORT_LEN)
+    uint8_t data[PROTO_TRANSPORT_MAX_DATA_LEN];
 } proto_transport_t;
 
 extern const err_t ERR_DATA_TOO_LARGE;
 
 err_t proto_new_transport_packet(uint32_t remote_index, uint64_t nonce, const uint8_t *data, size_t data_len,
                                  proto_transport_t *out_packet, size_t *out_len);
+
+typedef struct {
+    uint8_t vhl;        /* version << 4 | header length >> 2 */
+    uint8_t  tos;       /* type of service */
+    uint16_t len;       /* total length */
+    uint16_t id;        /* identification */
+    uint16_t off;       /* fragment offset field */
+    uint8_t  ttl;       /* time to live */
+    uint8_t  p;         /* protocol */
+    uint16_t sum;       /* checksum */
+    uint32_t src, dst;  /* source and dest address */
+#define PROTO_IP_MAX_DATA_LEN (PROTO_MAX_MTU - PROTO_HEADER_IP_MIN_LEN)
+    uint8_t data[PROTO_IP_MAX_DATA_LEN];
+} proto_ip_t;
