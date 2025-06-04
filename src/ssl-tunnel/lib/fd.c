@@ -7,9 +7,11 @@
 #include <sys/ioctl.h> // ioctl
 #include <sys/socket.h> // socket
 #include <sys/epoll.h> // epoll_create1
+#include <sys/eventfd.h>
 
 const int FD_POLL_READ = 1 << 0;
 const int FD_POLL_WRITE = 1 << 1;
+const int FD_POLL_EDGE_TRIGGERED = 1 << 2;
 
 err_t fd_tun_open(const char *device_name, int *out_tun_fd) {
     struct ifreq ifr;
@@ -75,6 +77,9 @@ err_t fd_poll_add(int poll_fd, int fd, int flags) {
     if (flags & FD_POLL_WRITE) {
         f |= EPOLLOUT;
     }
+    if (flags & FD_POLL_EDGE_TRIGGERED) {
+        f |= EPOLLET;
+    }
 
     ev.events = f;
     ev.data.fd = fd;
@@ -101,5 +106,15 @@ err_t fd_set_nonblock(int fd) {
         return err_errno();
     }
 
+    return ENULL;
+}
+
+err_t fd_eventfd(int *out_fd) {
+    int fd = eventfd(0, EFD_NONBLOCK);
+    if (fd == -1) {
+        return err_errno();
+    }
+
+    *out_fd = fd;
     return ENULL;
 }

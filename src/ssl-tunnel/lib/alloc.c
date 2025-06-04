@@ -1,20 +1,33 @@
 #include <ssl-tunnel/lib/alloc.h>
+#include <ssl-tunnel/lib/err.h>
 
 #include <stdlib.h>
 
 static void *std_calloc(void *extra, size_t nmemb, size_t size) {
     (void) extra;
-    return calloc(nmemb, size);
+    void *p = calloc(nmemb, size);
+    if (!p) {
+        panicf("calloc failed");
+    }
+    return p;
 }
 
 static void *std_malloc(void *extra, size_t size) {
     (void) extra;
-    return malloc(size);
+    void *p = malloc(size);
+        if (!p) {
+        panicf("malloc failed");
+    }
+    return p;
 }
 
 static void *std_realloc(void *extra, void *ptr, size_t size) {
     (void) extra;
-    return realloc(ptr, size);
+    void *p = realloc(ptr, size);
+        if (!p) {
+        panicf("realloc failed");
+    }
+    return p;
 }
 
 static void std_free(void *extra, void *ptr) {
