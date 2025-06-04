@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <unistd.h> // close
-#include <stdatomic.h> // atomic_bool, atomic_load
 #include <sys/epoll.h>
 #include <netinet/in.h> // struct sockaddr
 
@@ -71,7 +70,7 @@ static void tunnel_free(tunnel_t *t) {
     memscope_free(&t->m);
 }
 
-err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, const volatile atomic_bool *flag) {
+err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd) {
     tunnel_t t;
     tunnel_init(&t);
 
@@ -116,6 +115,10 @@ err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, const vo
         goto cleanup;
     }
 
+    if (!ERROR_OK(err = fd_poll_add(t.poll_fd, signal_fd, FD_POLL_READ))) {
+        goto cleanup;
+    }
+
     struct epoll_event evs[2];
 
     if (optional_is_some(cfg->interface.listen_port)) {
@@ -123,9 +126,10 @@ err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, const vo
         fflush(stdout);
     }
 
-    while (atomic_load(flag)) {
+    bool running = true;
+    while (running) {
         int fd_ready;
-        err = fd_poll_wait(t.poll_fd, evs, 2, 0, &fd_ready);
+        err = fd_poll_wait(t.poll_fd, evs, 2, -1, &fd_ready);
         if (!ERROR_OK(err)) {
             goto cleanup;
         }
@@ -138,8 +142,17 @@ err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, const vo
                 tunnel_handle_tun_read(&t, tun_fd, socket_fd, cfg->interface.index);
                 continue;
             }
+            if (fd == socket_fd) {
+                tunnel_handle_socket_read(&t, tun_fd, socket_fd);
+                continue;
+            }
 
-            tunnel_handle_socket_read(&t, tun_fd, socket_fd);
+            if (fd != signal_fd) {
+                panicf("poll returned unknown fd: %d", fd);
+            }
+
+            running = false;
+            break;
         }
     }
     printf("signal received, exiting...\n");

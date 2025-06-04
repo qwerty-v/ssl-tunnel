@@ -8,21 +8,24 @@
 #include <stdio.h> // printf
 #include <errno.h> // errno
 #include <stdbool.h> // true, false
-#include <stdatomic.h> // atomic_bool, atomic_store, atomic_init
 #include <signal.h> // signal
 #include <unistd.h> // close
+#include <stdint.h> // uint64_t
 
-static const char *default_config_path = "/etc/ssl-tunnel/cfg.yaml";
-
-static volatile atomic_bool signal_flag;
+static int signal_fd;
 
 static void signal_handler(int unused) {
     (void) unused;
-    atomic_store(&signal_flag, false);
+
+    uint64_t num = 1;
+    write(signal_fd, &num, sizeof(uint64_t));
 }
 
 void signal_init() {
-    atomic_init(&signal_flag, true);
+    err_t err = fd_eventfd(&signal_fd);
+    if (!ERROR_OK(err)) {
+        panicf("failed to call eventfd: %s", err.msg);
+    }
 
     signal(SIGHUP, signal_handler);
     signal(SIGINT, signal_handler);
@@ -60,6 +63,8 @@ void main_free(main_t *m) {
 
     memscope_free(&m->m);
 }
+
+static const char *default_config_path = "/etc/ssl-tunnel/cfg.yaml";
 
 int main(int argc, char *argv[]) {
     const char *path = getenv("CFG_PATH");
@@ -99,12 +104,14 @@ int main(int argc, char *argv[]) {
 
     signal_init();
 
-    if (!ERROR_OK(err = tunnel_event_loop(&m.cfg, m.tun_fd, m.socket_fd, &signal_flag))) {
+    if (!ERROR_OK(err = tunnel_event_loop(&m.cfg, m.tun_fd, m.socket_fd, signal_fd))) {
         goto cleanup;
     }
 
 cleanup:
     main_free(&m);
+
+    close(signal_fd);
 
     if (!ERROR_OK(err)) {
         printf("Error: %s\n", err.msg);
