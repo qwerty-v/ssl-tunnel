@@ -54,11 +54,11 @@ docker_client:
 	cp configs/client_config.yaml config.yaml
 	cp configs/client_preup.sh preup.sh
 	docker build -t ssl-tunnel:latest .
-	docker run -d --cap-add=NET_ADMIN ssl-tunnel:latest
+	docker run -d --name ssl-tunnel-client --network vpn-test-net --cap-add=NET_ADMIN ssl-tunnel:latest
 
 docker_server:
 	rm config.yaml preup.sh
 	cp configs/server_config.yaml config.yaml
 	cp configs/server_preup.sh preup.sh
 	docker build -t ssl-tunnel:latest .
-	docker run -d --cap-add=NET_ADMIN -p 1026:1026/udp ssl-tunnel:latest
+	docker run -d --name ssl-tunnel-server --network vpn-test-net --cap-add=NET_ADMIN -p 1026:1026/udp ssl-tunnel:latest

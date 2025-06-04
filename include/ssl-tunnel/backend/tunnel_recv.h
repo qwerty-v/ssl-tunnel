@@ -6,6 +6,8 @@
 
 #include <ssl-tunnel/lib/deque.h>
 
+#include <pthread.h>
+
 typedef struct {
     peer_t *peer;
 
@@ -15,6 +17,8 @@ typedef struct {
 
 typedef deque_t(inbound_packet_t) inbound_queue_t;
 
-void io_udp_read(int socket_fd, inbound_queue_t *recv_q, const hashmap_t *index_lookup);
+#define INBOUND_BUF_SIZE 128
 
-void io_tun_write(int tun_fd, inbound_queue_t *recv_q);
+void io_udp_read(int socket_fd, inbound_queue_t *recv_q, pthread_mutex_t *mx, const hashmap_t *index_lookup, inbound_packet_t *in_q);
+
+void io_tun_write(int tun_fd, inbound_queue_t *recv_q, pthread_mutex_t *mx, inbound_packet_t *in_q);
