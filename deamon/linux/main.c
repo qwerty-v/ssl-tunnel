@@ -6,13 +6,13 @@
 
 #include <stdlib.h> // getenv
 #include <stdio.h> // printf
-#include <errno.h> // errno
-#include <stdbool.h> // true, false
-#include <signal.h> // signal
+#include <errno.h>
+#include <stdbool.h>
+#include <signal.h>
 #include <unistd.h> // close
 #include <stdint.h> // uint64_t
 
-static int signal_fd;
+static int signal_fd = -1;
 
 static void signal_handler(int unused) {
     (void) unused;
@@ -24,7 +24,7 @@ static void signal_handler(int unused) {
 void signal_init() {
     err_t err = fd_eventfd(&signal_fd);
     if (!ERROR_OK(err)) {
-        panicf("failed to call eventfd: %s", err.msg);
+        panicf("fd_eventfd failed: %s", err.msg);
     }
 
     signal(SIGHUP, signal_handler);
@@ -104,14 +104,16 @@ int main(int argc, char *argv[]) {
 
     signal_init();
 
-    if (!ERROR_OK(err = tunnel_event_loop(&m.cfg, m.tun_fd, m.socket_fd, signal_fd))) {
+    if (!ERROR_OK(err = tunnel_main(&m.cfg, m.tun_fd, m.socket_fd, signal_fd))) {
         goto cleanup;
     }
 
 cleanup:
     main_free(&m);
 
-    close(signal_fd);
+    if (signal_fd >= 0) {
+        close(signal_fd);
+    }
 
     if (!ERROR_OK(err)) {
         printf("Error: %s\n", err.msg);

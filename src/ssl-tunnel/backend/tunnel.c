@@ -70,7 +70,7 @@ static void tunnel_free(tunnel_t *t) {
     memscope_free(&t->m);
 }
 
-err_t tunnel_event_loop(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd) {
+err_t tunnel_main(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd) {
     tunnel_t t;
     tunnel_init(&t);
 
