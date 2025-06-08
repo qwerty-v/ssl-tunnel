@@ -4,6 +4,7 @@
 #include <ssl-tunnel/lib/alloc.h>
 
 #include <ssl-tunnel/backend/config.h>
+#include <ssl-tunnel/backend/proto.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -169,6 +170,24 @@ err_t config_read(const char *path, config_t *out_cfg) {
             if (strcmp(key, "addr") == 0) {
                 parse_addr_prefix(val, &cur_peer.addr, &cur_peer.addr_prefix);
                 continue;
+            }
+            if (strcmp(key, "cipher") == 0) {
+                cur_peer.cipher.present = true;
+
+                if (strcmp(val, "NULL_SHA384") == 0) {
+                    cur_peer.cipher.v = PROTO_CIPHER_NULL_SHA384;
+                    continue;
+                }
+                if (strcmp(val, "AES_256_GCM") == 0) {
+                    cur_peer.cipher.v = PROTO_CIPHER_AES_256_GCM;
+                    continue;
+                }
+                if (strcmp(val, "CHACHA20_POLY1305") == 0) {
+                    cur_peer.cipher.v = PROTO_CIPHER_CHACHA20_POLY1305;
+                    continue;
+                }
+
+                panicf("unknown cipher value: %s", val);
             }
             if (strcmp(key, "preshared_key") == 0) {
                 // fixme

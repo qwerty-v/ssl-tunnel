@@ -18,6 +18,7 @@ typedef struct {
     optional_t(struct sockaddr_in) remote;
     uint32_t addr;
     uint8_t addr_prefix;
+    optional_t(int) cipher;
     optional_arr_t(uint8_t, 32) preshared_key;
 } config_peer_t;
 

@@ -62,13 +62,23 @@ static void *worker_main(void *p) {
 
         int fd = ev.data.fd;
         if (fd == t->tun_fd) {
-            io_tun_read(t->tun_fd, &t->send_q, &t->send_q_mx, &t->route_lookup, out_q);
+            outbound_t out = {
+                    .send_q = &t->send_q,
+                    .mx = &t->send_q_mx,
+                    .out_q = out_q
+            };
+            io_tun_read(t->tun_fd, &out, &t->route_lookup);
 
             fd_eventfd_write(t->socket_pending_fd);
             continue;
         }
         if (fd == t->socket_fd) {
-            io_udp_read(t->socket_fd, &t->recv_q, &t->recv_q_mx, &t->index_lookup, in_q);
+            inbound_t in = {
+                    .recv_q = &t->recv_q,
+                    .mx = &t->recv_q_mx,
+                    .in_q = in_q
+            };
+            io_udp_read(t->socket_fd, &in, &t->index_lookup);
 
             fd_eventfd_write(t->tun_pending_fd);
             continue;
@@ -76,13 +86,23 @@ static void *worker_main(void *p) {
         if (fd == t->socket_pending_fd) {
             while (ERROR_OK(fd_eventfd_read(t->socket_pending_fd)));
 
-            io_udp_write(t->socket_fd, &t->send_q, &t->send_q_mx, t->self_index, out_q);
+            outbound_t out = {
+                    .send_q = &t->send_q,
+                    .mx = &t->send_q_mx,
+                    .out_q = out_q
+            };
+            io_udp_write(t->socket_fd, &out, t->self_index);
             continue;
         }
         if (fd == t->tun_pending_fd) {
             while (ERROR_OK(fd_eventfd_read(t->tun_pending_fd)));
 
-            io_tun_write(t->tun_fd, &t->recv_q, &t->recv_q_mx, in_q);
+            inbound_t in = {
+                    .recv_q = &t->recv_q,
+                    .mx = &t->recv_q_mx,
+                    .in_q = in_q
+            };
+            io_tun_write(t->tun_fd, &in);
             continue;
         }
         if (fd == t->signal_fd) {

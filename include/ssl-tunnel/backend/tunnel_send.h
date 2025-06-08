@@ -19,6 +19,12 @@ typedef deque_t(outbound_packet_t) outbound_queue_t;
 
 #define OUTBOUND_BUF_SIZE 128
 
-void io_tun_read(int tun_fd, outbound_queue_t *send_q, pthread_mutex_t *mx, const trie_t *route_lookup, outbound_packet_t *out_q);
+typedef struct {
+    outbound_queue_t *send_q;
+    pthread_mutex_t *mx;
+    outbound_packet_t *out_q;
+} outbound_t;
 
-void io_udp_write(int socket_fd, outbound_queue_t *send_q, pthread_mutex_t *mx, uint32_t self_index, outbound_packet_t *out_q);
+void io_tun_read(int tun_fd, outbound_t *out, const trie_t *route_lookup);
+
+void io_udp_write(int socket_fd, outbound_t *out, uint32_t self_index);

@@ -2,7 +2,7 @@ FROM ubuntu:24.04 AS builder
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get -y install gcc make
+    apt-get -y install gcc make libssl-dev
 
 COPY . .
 

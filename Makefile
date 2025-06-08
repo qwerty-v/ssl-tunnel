@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -I"$(shell realpath include)"
-LDFLAGS =
+LDFLAGS = -lssl -lcrypto -pthread
 AR = ar
 
 all: build
@@ -12,13 +12,13 @@ build: clean
 	$(CC) -shared -fPIC $(CFLAGS) $(LDFLAGS) -o bin/libssltunnel.so bin/libssltunnel/*.c
 
 	@for f in bin/libssltunnel/*.c; do \
-		$(CC) $(CFLAGS) $(LDFLAGS) -c $$f -o bin/libssltunnel/$$(basename $$f .c).o; \
+		$(CC) $(CFLAGS) -c $$f $(LDFLAGS) -o bin/libssltunnel/$$(basename $$f .c).o; \
 	done
 	$(AR) rcs bin/libssltunnel.a bin/libssltunnel/*.o
 
-	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/ssl-tunnel \
+	$(CC) $(CFLAGS) -o bin/ssl-tunnel \
 	  deamon/linux/*.c \
-	  bin/libssltunnel.a
+	  bin/libssltunnel.a $(LDFLAGS)
 
 test: clean
 	$(CC) $(CFLAGS) -o bin/unit_alloc \

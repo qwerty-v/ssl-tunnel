@@ -8,6 +8,7 @@
 #include <sys/socket.h> // socket
 #include <sys/epoll.h> // epoll_create1
 #include <sys/eventfd.h>
+#include <unistd.h>
 
 const int FD_POLL_READ = 1 << 0;
 const int FD_POLL_WRITE = 1 << 1;
