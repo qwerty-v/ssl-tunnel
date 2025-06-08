@@ -118,3 +118,21 @@ err_t fd_eventfd(int *out_fd) {
     *out_fd = fd;
     return ENULL;
 }
+
+err_t fd_eventfd_read(int signal_fd) {
+    uint64_t num;
+    if (read(signal_fd, &num, sizeof(uint64_t)) < 0) {
+        return err_errno();
+    }
+
+    return ENULL;
+}
+
+err_t fd_eventfd_write(int signal_fd) {
+    uint64_t num = 1;
+    if (write(signal_fd, &num, sizeof(uint64_t)) < 0) {
+        return err_errno();
+    }
+
+    return ENULL;
+}

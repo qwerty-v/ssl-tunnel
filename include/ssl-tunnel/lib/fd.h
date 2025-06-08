@@ -22,3 +22,7 @@ err_t fd_poll_wait(int poll_fd, void *events, int max_events, int timeout_ms, in
 err_t fd_set_nonblock(int fd);
 
 err_t fd_eventfd(int *out_fd);
+
+err_t fd_eventfd_read(int signal_fd);
+
+err_t fd_eventfd_write(int signal_fd);

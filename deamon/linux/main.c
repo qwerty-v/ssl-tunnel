@@ -17,16 +17,10 @@ static int signal_fd = -1;
 static void signal_handler(int unused) {
     (void) unused;
 
-    uint64_t num = 1;
-    write(signal_fd, &num, sizeof(uint64_t));
+    (void) fd_eventfd_write(signal_fd);
 }
 
 void signal_init() {
-    err_t err = fd_eventfd(&signal_fd);
-    if (!ERROR_OK(err)) {
-        panicf("fd_eventfd failed: %s", err.msg);
-    }
-
     signal(SIGHUP, signal_handler);
     signal(SIGINT, signal_handler);
     signal(SIGQUIT, signal_handler);
@@ -99,6 +93,10 @@ int main(int argc, char *argv[]) {
     }
 
     if (!ERROR_OK(err = fd_set_nonblock(m.socket_fd))) {
+        goto cleanup;
+    }
+
+    if (!ERROR_OK(err = fd_eventfd(&signal_fd))) {
         goto cleanup;
     }
 

@@ -21,7 +21,8 @@
 
 typedef struct {
     memscope_t m;
-    memscope_t m2;
+    memscope_t m_recv;
+    memscope_t m_send;
 
     slice_t(peer_t) peers;
     hashmap_t index_lookup; // [uint32_t remote_index] -> peer_t *peer
@@ -39,7 +40,7 @@ typedef struct {
     int self_index;
     int tun_fd;
     int socket_fd;
-    const volatile atomic_bool *flag;
+    int signal_fd;
 } tunnel_t;
 
 static void *worker_main(void *p) {
@@ -49,7 +50,7 @@ static void *worker_main(void *p) {
     outbound_packet_t *out_q = alloc_malloc(&alloc_std, OUTBOUND_BUF_SIZE * sizeof(outbound_packet_t));
 
     struct epoll_event ev;
-    while (atomic_load(t->flag)) {
+    while (1) {
         int fd_ready;
         err_t err = fd_poll_wait(t->poll_fd, &ev, 1, -1, &fd_ready);
         if (!ERROR_OK(err)) {
@@ -61,44 +62,31 @@ static void *worker_main(void *p) {
 
         int fd = ev.data.fd;
         if (fd == t->tun_fd) {
-//            printf("tun_fd\n");
-//            fflush(stdout);
-
             io_tun_read(t->tun_fd, &t->send_q, &t->send_q_mx, &t->route_lookup, out_q);
 
-            uint64_t num = 1;
-            write(t->socket_pending_fd, &num, sizeof(uint64_t));
+            fd_eventfd_write(t->socket_pending_fd);
             continue;
         }
         if (fd == t->socket_fd) {
-//            printf("socket_fd\n");
-//            fflush(stdout);
-
             io_udp_read(t->socket_fd, &t->recv_q, &t->recv_q_mx, &t->index_lookup, in_q);
 
-            uint64_t num = 1;
-            write(t->tun_pending_fd, &num, sizeof(uint64_t));
+            fd_eventfd_write(t->tun_pending_fd);
             continue;
         }
         if (fd == t->socket_pending_fd) {
-//            printf("socket_pending_fd\n");
-//            fflush(stdout);
-
-            uint64_t num;
-            while (read(t->socket_pending_fd, &num, sizeof(uint64_t)) > 0);
+            while (ERROR_OK(fd_eventfd_read(t->socket_pending_fd)));
 
             io_udp_write(t->socket_fd, &t->send_q, &t->send_q_mx, t->self_index, out_q);
             continue;
         }
         if (fd == t->tun_pending_fd) {
-//            printf("tun_pending_fd\n");
-//            fflush(stdout);
-
-            uint64_t num;
-            while (read(t->tun_pending_fd, &num, sizeof(uint64_t)) > 0);
+            while (ERROR_OK(fd_eventfd_read(t->tun_pending_fd)));
 
             io_tun_write(t->tun_fd, &t->recv_q, &t->recv_q_mx, in_q);
             continue;
+        }
+        if (fd == t->signal_fd) {
+            break;
         }
 
         panicf("unknown fd after fd_poll_wait()");
@@ -114,14 +102,16 @@ static void tunnel_init(tunnel_t *t) {
     memset(t, 0, sizeof(tunnel_t));
 
     memscope_init(&t->m);
-    memscope_init(&t->m2);
+
+    memscope_init(&t->m_recv);
+    memscope_init(&t->m_send);
 
     slice_init((slice_any_t *) &t->peers, sizeof(peer_t), &t->m.alloc);
     hashmap_init(&t->index_lookup, &t->m.alloc);
     trie_init(&t->route_lookup, &t->m.alloc);
 
-    deque_init((deque_any_t *) &t->recv_q, sizeof(inbound_packet_t), &t->m.alloc);
-    deque_init((deque_any_t *) &t->send_q, sizeof(outbound_packet_t), &t->m2.alloc);
+    deque_init((deque_any_t *) &t->recv_q, sizeof(inbound_packet_t), &t->m_recv.alloc);
+    deque_init((deque_any_t *) &t->send_q, sizeof(outbound_packet_t), &t->m_send.alloc);
 
     pthread_mutex_init(&t->recv_q_mx, NULL);
     pthread_mutex_init(&t->send_q_mx, NULL);
@@ -146,7 +136,8 @@ static void tunnel_free(tunnel_t *t) {
     pthread_mutex_destroy(&t->send_q_mx);
 
     memscope_free(&t->m);
-    memscope_free(&t->m2);
+    memscope_free(&t->m_recv);
+    memscope_free(&t->m_send);
 }
 
 err_t tunnel_main(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd) {
@@ -156,7 +147,7 @@ err_t tunnel_main(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd)
     t.self_index = cfg->interface.index;
     t.tun_fd = tun_fd;
     t.socket_fd = socket_fd;
-    t.flag = flag;
+    t.signal_fd = signal_fd;
 
     for (int i = 0; i < (int) cfg->peers.len; i++) {
         peer_t p;
@@ -187,6 +178,14 @@ err_t tunnel_main(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd)
     }
 
     err_t err;
+    if (!ERROR_OK(err = fd_eventfd(&t.tun_pending_fd))) {
+        goto cleanup;
+    }
+
+    if (!ERROR_OK(err = fd_eventfd(&t.socket_pending_fd))) {
+        goto cleanup;
+    }
+
     if (!ERROR_OK(err = fd_poll_create(&t.poll_fd))) {
         goto cleanup;
     }
@@ -203,15 +202,7 @@ err_t tunnel_main(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd)
         goto cleanup;
     }
 
-    if (!ERROR_OK(err = fd_eventfd(&t.tun_pending_fd))) {
-        goto cleanup;
-    }
-
     if (!ERROR_OK(err = fd_poll_add(t.poll_fd, t.tun_pending_fd, FD_POLL_READ))) {
-        goto cleanup;
-    }
-
-    if (!ERROR_OK(err = fd_eventfd(&t.socket_pending_fd))) {
         goto cleanup;
     }
 
@@ -235,6 +226,7 @@ err_t tunnel_main(const config_t *cfg, int tun_fd, int socket_fd, int signal_fd)
     for (int i = 0; i < CPU_COUNT; i++) {
         pthread_join(workers[i], NULL);
     }
+    printf("signal received, exiting...\n");
 
 cleanup:
     tunnel_free(&t);
