@@ -21,7 +21,8 @@ RUN apk add --update --no-cache \
     bash \
     iproute2 \
     iptables \
-    libc6-compat
+    libc6-compat \
+    iperf3
 
 COPY --from=builder /app/bin/ssl-tunnel ./ssl-tunnel
 COPY ./scripts/docker_entrypoint.sh .
